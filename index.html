@@ -263,6 +263,41 @@
     import { getFirestore, collection, addDoc, doc, setDoc, deleteDoc, onSnapshot, orderBy, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 
+// Lista branca
+const ALLOW = new Set([
+  'viictor.castro@gmail.com',
+  'gcm.conceicao@gmail.com'
+]);
+
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    const email = (user.email || '').toLowerCase();
+
+    // Bloqueio visual imediato
+    if (!ALLOW.has(email)) {
+      document.querySelector('#loginMsg').innerHTML =
+        'Acesso negado: este e-mail não está autorizado.';
+      await signOut(auth); // garante sair
+      return;
+    }
+
+    // ... segue fluxo normal se autorizado
+    document.getElementById('login').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('userPhoto').src = user.photoURL || '';
+    document.getElementById('userName').textContent = user.displayName || email;
+
+    // resto do init (preencher selects, listeners realtime, etc.)
+    startRealtime();
+    const d = document.getElementById('iData');
+    if (d && !d.value) d.value = new Date().toISOString().slice(0,10);
+  } else {
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('login').classList.remove('hidden');
+  }
+});
+
+
     // ---- CONFIG (ajuste se seu projeto for outro) ----
     const firebaseConfig = {
       apiKey: "AIzaSyA9GTueuXozK7FZPl-MSnXfbn4d9ex2Mm8",
