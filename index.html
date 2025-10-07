@@ -13,9 +13,6 @@
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
         .hidden { display: none !important; }
-        .flex { display: flex; }
-        .items-center { align-items: center; }
-        .justify-center { justify-content: center; }
         .modal-overlay { transition: opacity 0.2s ease-in-out; }
         .progress-bar-bg { background-color: #e5e7eb; }
         .progress-bar { transition: width 0.3s ease-in-out; }
@@ -36,7 +33,66 @@
         </div>
     </div>
 
-    <div id="app-wrapper" class="hidden"></div>
+    <div id="app-wrapper" class="hidden">
+         <div id="app" class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
+            <header class="mb-8">
+                <div class="flex flex-wrap justify-between items-center gap-4">
+                     <h1 id="main-title" class="text-3xl font-bold text-slate-900">Gestor de Custos de Obra</h1>
+                     <div id="user-info" class="flex items-center gap-4">
+                        <img id="user-photo" class="w-10 h-10 rounded-full">
+                        <span id="user-name" class="font-semibold"></span>
+                        <button id="logout-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Sair</button>
+                    </div>
+                </div>
+                 <div class="mt-4 flex flex-wrap justify-between items-center gap-4">
+                    <div class="p-4 bg-slate-200 rounded-lg flex flex-wrap gap-4 items-center">
+                        <span class="font-semibold">Sócios:</span>
+                        <input type="text" id="participant-a" class="px-2 py-1 font-bold border rounded-md w-32">
+                        <span>&</span>
+                        <input type="text" id="participant-b" class="px-2 py-1 font-bold border rounded-md w-32">
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button id="history-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Histórico</button>
+                        <button id="manage-budget-btn" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Orçamento</button>
+                        <button id="export-pdf-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Exportar PDF</button>
+                    </div>
+                </div>
+            </header>
+            <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2 space-y-8">
+                    <section><h2 class="text-2xl font-bold mb-4 text-slate-800">Dashboard da Obra</h2><div id="dashboard-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"></div></section>
+                    <section id="balanca-acerto-card" class="p-6 rounded-2xl shadow-lg text-center"><h2 class="text-xl font-bold mb-2">Balança de Acerto</h2><div id="balanca-content"></div></section>
+                    <section class="bg-white p-6 rounded-2xl shadow-lg">
+                        <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold">Novo Lançamento</h2><button id="quick-add-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg shadow-md">Rápido</button></div>
+                        <form id="lancamento-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <input type="date" id="dt" class="sm:col-span-1 border p-2 rounded-md" required>
+                            <input type="text" id="desc" placeholder="Descrição" class="sm:col-span-3 border p-2 rounded-md" required>
+                            <select id="cat" class="border p-2 rounded-md"></select>
+                            <select id="cc" class="border p-2 rounded-md"></select>
+                            <input type="text" id="valor" placeholder="Valor" class="border p-2 rounded-md" required>
+                            <select id="pagador" class="border p-2 rounded-md"></select>
+                            <div><label id="label-pa" class="text-sm">Sócio A (%):</label><input type="number" id="pA" step="0.01" min="0" max="1" value="0.5" class="w-full border p-2 rounded-md" required></div>
+                            <div><label id="label-pb" class="text-sm">Sócio B (%):</label><input type="number" id="pB" step="0.01" min="0" max="1" value="0.5" class="w-full border p-2 rounded-md" required></div>
+                            <input type="file" id="anexo" accept=".pdf,.jpeg,.jpg,.png" class="sm:col-span-4 border p-2 rounded-md file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                            <div class="sm:col-span-4 flex flex-wrap items-center gap-4"><button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow-md">Adicionar</button></div>
+                        </form>
+                    </section>
+                     <section class="bg-white p-6 rounded-2xl shadow-lg">
+                        <div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-xl font-bold">Lançamentos</h2><div class="flex items-center gap-2"><label for="filter-cc" class="text-sm font-medium">Filtrar por CC:</label><select id="filter-cc" class="border p-2 rounded-md text-sm"></select></div></div>
+                        <div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="bg-slate-100"><tr><th class="p-2">Data</th><th class="p-2">Descrição</th><th class="p-2">Valor</th><th class="p-2">Pagador</th><th class="p-2">Anexo</th><th class="p-2">Ação</th></tr></thead><tbody id="lancamentos-table-body"></tbody></table></div>
+                    </section>
+                </div>
+                <aside class="space-y-8">
+                    <section><h2 class="text-2xl font-bold mb-4 text-slate-800">Resumo Financeiro</h2><div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div class="bg-white p-4 rounded-2xl shadow-md text-center"><h3 class="text-sm font-semibold text-slate-500">Total Geral</h3><p id="kpi-total" class="text-2xl font-bold"></p></div><div class="bg-yellow-100 border border-yellow-300 p-4 rounded-2xl shadow-md text-center"><h3 class="text-sm font-semibold text-slate-600">Equalização</h3><p id="kpi-equalizacao" class="text-xl font-bold"></p></div></div></section>
+                    <section class="bg-white p-6 rounded-2xl shadow-lg"><h2 class="text-xl font-bold mb-4">Acertos</h2><form id="acerto-form" class="space-y-4"><div class="grid grid-cols-2 gap-4"><div><label for="de" class="block text-sm">De:</label><select id="de" class="w-full border p-2 rounded-md"></select></div><div><label for="para" class="block text-sm">Para:</label><select id="para" class="w-full border p-2 rounded-md"></select></div></div><div><label for="valor-acerto" class="block text-sm">Valor:</label><input type="text" id="valor-acerto" class="w-full border p-2 rounded-md" required></div><div><label for="anexo-acerto" class="block text-sm">Anexo:</label><input type="file" id="anexo-acerto" class="w-full border p-2 rounded-md"></div><div class="flex gap-2"><button type="submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 rounded-md shadow-sm">Registrar</button><button type="button" id="sugestao-btn" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 rounded-md shadow-sm">Sugestão</button></div></form><div class="mt-6"><h3 class="font-semibold mb-2">Histórico de Acertos</h3><ul id="acertos-list" class="space-y-2 text-sm"></ul></div></section>
+                    <section class="bg-white p-6 rounded-2xl shadow-lg"><h2 class="text-xl font-bold mb-4">Detalhes por Sócio</h2><div id="resumo-socios" class="space-y-4"></div></section>
+                </aside>
+            </main>
+        </div>
+        <div id="quick-add-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-md"><h2 class="text-xl font-bold mb-4">Lançamento Rápido</h2><form id="quick-add-form"><div class="space-y-4"><input type="text" id="quick-desc" class="w-full border p-2 rounded-md" placeholder="Descrição" required><input type="text" id="quick-valor" class="w-full border p-2 rounded-md" placeholder="Valor" required><select id="quick-pagador" class="w-full border p-2 rounded-md"></select></div><div class="flex gap-4 mt-6"><button type="submit" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 rounded-md">Adicionar</button><button type="button" id="quick-add-cancel" class="w-full bg-gray-300 hover:bg-gray-400 font-bold py-2 rounded-md">Cancelar</button></div></form></div></div>
+        <div id="budget-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-2xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Gerir Orçamento</h2><form id="budget-form" class="flex-grow overflow-y-auto pr-2"><div id="budget-fields" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div></form><div class="flex gap-4 mt-6 pt-4 border-t"><button type="button" id="budget-save" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 rounded-md">Salvar</button><button type="button" id="budget-cancel" class="w-full bg-gray-300 hover:bg-gray-400 font-bold py-2 rounded-md">Cancelar</button></div></div></div>
+        <div id="history-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-3xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Histórico de Eventos</h2><div id="history-content" class="flex-grow overflow-y-auto pr-2 text-sm"></div><div class="mt-6 pt-4 border-t"><button type="button" id="history-close" class="w-full bg-gray-300 hover:bg-gray-400 font-bold py-2 rounded-md">Fechar</button></div></div></div>
+    </div>
     <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-[100] hidden"><div class="loader"></div></div>
     
     <script type="module">
@@ -96,74 +152,12 @@
                 currentUser = null;
                 appWrapper.classList.add('hidden');
                 loginScreen.classList.remove('hidden');
-                appWrapper.innerHTML = '';
                 listeners.forEach(unsubscribe => unsubscribe());
                 listeners = [];
             }
         });
 
         function initializeAppUI() {
-            appWrapper.innerHTML = `
-                <div id="app" class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
-                    <header class="mb-8">
-                        <div class="flex flex-wrap justify-between items-center gap-4">
-                             <h1 id="main-title" class="text-3xl font-bold text-slate-900">Gestor de Custos de Obra</h1>
-                             <div id="user-info" class="flex items-center gap-4">
-                                <img id="user-photo" class="w-10 h-10 rounded-full" src="${currentUser.photoURL}">
-                                <span id="user-name" class="font-semibold">${currentUser.displayName}</span>
-                                <button id="logout-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Sair</button>
-                            </div>
-                        </div>
-                         <div class="mt-4 flex flex-wrap justify-between items-center gap-4">
-                            <div class="p-4 bg-slate-200 rounded-lg flex flex-wrap gap-4 items-center">
-                                <span class="font-semibold">Sócios:</span>
-                                <input type="text" id="participant-a" class="px-2 py-1 font-bold border rounded-md w-32">
-                                <span>&</span>
-                                <input type="text" id="participant-b" class="px-2 py-1 font-bold border rounded-md w-32">
-                            </div>
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <button id="history-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Histórico</button>
-                                <button id="manage-budget-btn" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Orçamento</button>
-                                <button id="export-pdf-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Exportar PDF</button>
-                            </div>
-                        </div>
-                    </header>
-                    <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div class="lg:col-span-2 space-y-8">
-                            <section><h2 class="text-2xl font-bold mb-4 text-slate-800">Dashboard da Obra</h2><div id="dashboard-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"></div></section>
-                            <section id="balanca-acerto-card" class="p-6 rounded-2xl shadow-lg text-center"><h2 class="text-xl font-bold mb-2">Balança de Acerto</h2><div id="balanca-content"></div></section>
-                            <section class="bg-white p-6 rounded-2xl shadow-lg">
-                                <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold">Novo Lançamento</h2><button id="quick-add-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg shadow-md">Rápido</button></div>
-                                <form id="lancamento-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                    <input type="date" id="dt" class="sm:col-span-1 border p-2 rounded-md" required>
-                                    <input type="text" id="desc" placeholder="Descrição" class="sm:col-span-3 border p-2 rounded-md" required>
-                                    <select id="cat" class="border p-2 rounded-md"></select>
-                                    <select id="cc" class="border p-2 rounded-md"></select>
-                                    <input type="text" id="valor" placeholder="Valor" class="border p-2 rounded-md" required>
-                                    <select id="pagador" class="border p-2 rounded-md"></select>
-                                    <div><label id="label-pa" class="text-sm">Sócio A (%):</label><input type="number" id="pA" step="0.01" min="0" max="1" value="0.5" class="w-full border p-2 rounded-md" required></div>
-                                    <div><label id="label-pb" class="text-sm">Sócio B (%):</label><input type="number" id="pB" step="0.01" min="0" max="1" value="0.5" class="w-full border p-2 rounded-md" required></div>
-                                    <input type="file" id="anexo" accept=".pdf,.jpeg,.jpg,.png" class="sm:col-span-4 border p-2 rounded-md file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-                                    <div class="sm:col-span-4 flex flex-wrap items-center gap-4"><button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow-md">Adicionar</button></div>
-                                </form>
-                            </section>
-                             <section class="bg-white p-6 rounded-2xl shadow-lg">
-                                <div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-xl font-bold">Lançamentos</h2><div class="flex items-center gap-2"><label for="filter-cc" class="text-sm font-medium">Filtrar por CC:</label><select id="filter-cc" class="border p-2 rounded-md text-sm"></select></div></div>
-                                <div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="bg-slate-100"><tr><th class="p-2">Data</th><th class="p-2">Descrição</th><th class="p-2">Valor</th><th class="p-2">Pagador</th><th class="p-2">Anexo</th><th class="p-2">Ação</th></tr></thead><tbody id="lancamentos-table-body"></tbody></table></div>
-                            </section>
-                        </div>
-                        <aside class="space-y-8">
-                            <section><h2 class="text-2xl font-bold mb-4 text-slate-800">Resumo Financeiro</h2><div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div class="bg-white p-4 rounded-2xl shadow-md text-center"><h3 class="text-sm font-semibold text-slate-500">Total Geral</h3><p id="kpi-total" class="text-2xl font-bold"></p></div><div class="bg-yellow-100 border border-yellow-300 p-4 rounded-2xl shadow-md text-center"><h3 class="text-sm font-semibold text-slate-600">Equalização</h3><p id="kpi-equalizacao" class="text-xl font-bold"></p></div></div></section>
-                            <section class="bg-white p-6 rounded-2xl shadow-lg"><h2 class="text-xl font-bold mb-4">Acertos</h2><form id="acerto-form" class="space-y-4"><div class="grid grid-cols-2 gap-4"><div><label for="de" class="block text-sm">De:</label><select id="de" class="w-full border p-2 rounded-md"></select></div><div><label for="para" class="block text-sm">Para:</label><select id="para" class="w-full border p-2 rounded-md"></select></div></div><div><label for="valor-acerto" class="block text-sm">Valor:</label><input type="text" id="valor-acerto" class="w-full border p-2 rounded-md" required></div><div><label for="anexo-acerto" class="block text-sm">Anexo:</label><input type="file" id="anexo-acerto" class="w-full border p-2 rounded-md"></div><div class="flex gap-2"><button type="submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 rounded-md shadow-sm">Registrar</button><button type="button" id="sugestao-btn" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 rounded-md shadow-sm">Sugestão</button></div></form><div class="mt-6"><h3 class="font-semibold mb-2">Histórico de Acertos</h3><ul id="acertos-list" class="space-y-2 text-sm"></ul></div></section>
-                            <section class="bg-white p-6 rounded-2xl shadow-lg"><h2 class="text-xl font-bold mb-4">Detalhes por Sócio</h2><div id="resumo-socios" class="space-y-4"></div></section>
-                        </aside>
-                    </main>
-                </div>
-                <div id="quick-add-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-md"><h2 class="text-xl font-bold mb-4">Lançamento Rápido</h2><form id="quick-add-form"><div class="space-y-4"><input type="text" id="quick-desc" class="w-full border p-2 rounded-md" placeholder="Descrição" required><input type="text" id="quick-valor" class="w-full border p-2 rounded-md" placeholder="Valor" required><select id="quick-pagador" class="w-full border p-2 rounded-md"></select></div><div class="flex gap-4 mt-6"><button type="submit" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 rounded-md">Adicionar</button><button type="button" id="quick-add-cancel" class="w-full bg-gray-300 hover:bg-gray-400 font-bold py-2 rounded-md">Cancelar</button></div></form></div></div>
-                <div id="budget-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-2xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Gerir Orçamento</h2><form id="budget-form" class="flex-grow overflow-y-auto pr-2"><div id="budget-fields" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div></form><div class="flex gap-4 mt-6 pt-4 border-t"><button type="button" id="budget-save" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 rounded-md">Salvar</button><button type="button" id="budget-cancel" class="w-full bg-gray-300 hover:bg-gray-400 font-bold py-2 rounded-md">Cancelar</button></div></div></div>
-                <div id="history-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-3xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Histórico de Eventos</h2><div id="history-content" class="flex-grow overflow-y-auto pr-2 text-sm"></div><div class="mt-6 pt-4 border-t"><button type="button" id="history-close" class="w-full bg-gray-300 hover:bg-gray-400 font-bold py-2 rounded-md">Fechar</button></div></div></div>
-            `;
-            
             addEventListeners();
             setupRealtimeListeners();
         }
@@ -220,6 +214,14 @@
             if (!state.config || !document.getElementById('app')) return;
             compute();
             
+            const { a, b } = state.config;
+            document.getElementById('user-photo').src = currentUser.photoURL;
+            document.getElementById('user-name').textContent = currentUser.displayName;
+            document.getElementById('participant-a').value = a;
+            document.getElementById('participant-b').value = b;
+            document.getElementById('label-pa').textContent = `${a} (%):`;
+            document.getElementById('label-pb').textContent = `${b} (%):`;
+
             populateSelects();
             renderDashboard();
             renderBalanca();
@@ -228,12 +230,6 @@
             renderResumoSocios();
             document.getElementById('kpi-total').textContent = fmt(cachedCalculations.totalGeral);
             document.getElementById('kpi-equalizacao').textContent = cachedCalculations.equalizacao.texto;
-
-            const { a, b } = state.config;
-            document.getElementById('participant-a').value = a;
-            document.getElementById('participant-b').value = b;
-            document.getElementById('label-pa').textContent = `${a} (%):`;
-            document.getElementById('label-pb').textContent = `${b} (%):`;
         }
         
         function populateSelects() {
@@ -244,12 +240,14 @@
             ['cat', 'cc', 'pagador', 'de', 'para', 'quick-pagador', 'filter-cc'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
+                    const currentValue = el.value;
                     if (id === 'cat') el.innerHTML = createOptions(PREDEFINED_LISTS.categorias);
                     else if (id === 'cc' || id === 'filter-cc') {
                         const options = id === 'filter-cc' ? ['Todos', ...PREDEFINED_LISTS.centrosDeCusto] : PREDEFINED_LISTS.centrosDeCusto;
                         el.innerHTML = createOptions(options);
                     }
                     else if (['pagador', 'de', 'para', 'quick-pagador'].includes(id)) el.innerHTML = createOptions(pagadores);
+                    el.value = currentValue;
                 }
             });
         }
@@ -427,6 +425,7 @@
             const quickAddModal = document.getElementById('quick-add-modal');
             document.getElementById('quick-add-btn').addEventListener('click', () => quickAddModal.classList.remove('hidden'));
             document.getElementById('quick-add-cancel').addEventListener('click', () => quickAddModal.classList.add('hidden'));
+            quickAddModal.addEventListener('click', e => { if(e.target === quickAddModal) quickAddModal.classList.add('hidden') });
             document.getElementById('quick-add-form').addEventListener('submit', async e => {
                 e.preventDefault();
                 const valor = parseNum(e.target['quick-valor'].value);
@@ -450,6 +449,7 @@
                 budgetModal.classList.remove('hidden');
             });
             document.getElementById('budget-cancel').addEventListener('click', () => budgetModal.classList.add('hidden'));
+            budgetModal.addEventListener('click', e => { if(e.target === budgetModal) budgetModal.classList.add('hidden') });
             document.getElementById('budget-save').addEventListener('click', async () => {
                 const newBudget = { cc: {} };
                 document.querySelectorAll('#budget-fields input').forEach(i => newBudget.cc[i.name] = parseNum(i.value));
@@ -461,8 +461,8 @@
             const historyModal = document.getElementById('history-modal');
             document.getElementById('history-btn').addEventListener('click', () => historyModal.classList.remove('hidden'));
             document.getElementById('history-close').addEventListener('click', () => historyModal.classList.add('hidden'));
+            historyModal.addEventListener('click', e => { if(e.target === historyModal) historyModal.classList.add('hidden') });
         }
     </script>
 </body>
 </html>
-
