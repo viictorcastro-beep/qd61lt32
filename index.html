@@ -389,7 +389,8 @@
                 return { url, path: snapshot.ref.fullPath, name: file.name };
             } catch (error) {
                 console.error("Upload Error:", error);
-                alert("Falha no upload do anexo."); return null;
+                alert(`Falha no upload do anexo.\n\nErro: ${error.code}\n\nPor favor, verifique as regras de segurança do Storage no seu painel do Firebase.`);
+                return null;
             } finally {
                 loadingOverlay.classList.add('hidden');
             }
@@ -438,8 +439,14 @@
                 if (e.target.id === 'history-close' || (e.target.id === 'history-modal' && !e.target.closest('.bg-white'))) document.getElementById('history-modal').classList.add('hidden');
             });
             
-            document.getElementById('participant-a').addEventListener('change', async e => await setDoc(configDocRef, { a: e.target.value }, { merge: true }));
-            document.getElementById('participant-b').addEventListener('change', async e => await setDoc(configDocRef, { b: e.target.value }, { merge: true }));
+            document.getElementById('participant-a').addEventListener('change', async e => {
+                await setDoc(configDocRef, { a: e.target.value }, { merge: true });
+                await logEvent('Sócio A Alterado', { nome: e.target.value });
+            });
+            document.getElementById('participant-b').addEventListener('change', async e => {
+                await setDoc(configDocRef, { b: e.target.value }, { merge: true });
+                await logEvent('Sócio B Alterado', { nome: e.target.value });
+            });
 
             document.getElementById('lancamento-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -493,4 +500,3 @@
     </script>
 </body>
 </html>
-
