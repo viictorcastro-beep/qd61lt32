@@ -5,10 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>V&G – Gestor de Custos (Firebase + GitHub Pages)</title>
 
-  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- jsPDF opcional -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
@@ -261,44 +258,9 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
     import { getFirestore, collection, addDoc, doc, setDoc, deleteDoc, onSnapshot, orderBy, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 
-// Lista branca
-const ALLOW = new Set([
-  'viictor.castro@gmail.com',
-  'gcm.conceicao@gmail.com'
-]);
-
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    const email = (user.email || '').toLowerCase();
-
-    // Bloqueio visual imediato
-    if (!ALLOW.has(email)) {
-      document.querySelector('#loginMsg').innerHTML =
-        'Acesso negado: este e-mail não está autorizado.';
-      await signOut(auth); // garante sair
-      return;
-    }
-
-    // ... segue fluxo normal se autorizado
-    document.getElementById('login').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
-    document.getElementById('userPhoto').src = user.photoURL || '';
-    document.getElementById('userName').textContent = user.displayName || email;
-
-    // resto do init (preencher selects, listeners realtime, etc.)
-    startRealtime();
-    const d = document.getElementById('iData');
-    if (d && !d.value) d.value = new Date().toISOString().slice(0,10);
-  } else {
-    document.getElementById('app').classList.add('hidden');
-    document.getElementById('login').classList.remove('hidden');
-  }
-});
-
-
-    // ---- CONFIG (ajuste se seu projeto for outro) ----
+    // ---- CONFIG ----
     const firebaseConfig = {
       apiKey: "AIzaSyA9GTueuXozK7FZPl-MSnXfbn4d9ex2Mm8",
       authDomain: "qd61lt32.firebaseapp.com",
@@ -309,7 +271,7 @@ onAuthStateChanged(auth, async (user) => {
       measurementId: "G-QT2KJL124T"
     };
 
-    // ---- INIT ----
+    // ---- INIT (antes de QUALQUER uso de auth!) ----
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth(app);
@@ -323,15 +285,7 @@ onAuthStateChanged(auth, async (user) => {
     const parseMoney = (v) => { if (v == null) return 0; const s = String(v).trim(); if (!s) return 0; const cleaned = s.replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3}(\D|$))/g, ""); return parseFloat(cleaned.replace(",", ".")) || 0; };
     const pctClamp = (x) => { const n = Number(x); if (isNaN(n)) return 0.5; return Math.min(1, Math.max(0, n)); };
 
-    // ---- Collections ----
-    const colLanc = collection(db, "lancamentos");
-    const colAcertos = collection(db, "acertos");
-    const docConfig = doc(db, "config", "main");
-
-    // ---- Estado ----
-    const state = { a: "Victor", b: "Gustavo", lanc: [], acertos: [], user: null };
-
-    // ---- Listas fixas ----
+    // ---- Listas fixas (precisam existir antes do onAuthStateChanged) ----
     const CATS = ["Terreno","Projeto","Material","Mão de Obra","Serviços","Licenças/Taxas","Transporte/Logística","Outros"];
     const CC = ["Terreno","Projeto","Fundações","Estrutura/Alvenaria","Cobertura","Elétrica","Hidráulica","Revestimentos/Pisos","Esquadrias/Vidros","Pintura","Paisagismo","Licenças/Taxas","Equalização","Outros"];
     const TIPODOC = ["NF-e (produto)","NFS-e (serviço)","Recibo","RPA","Sem documento"];
@@ -339,33 +293,62 @@ onAuthStateChanged(auth, async (user) => {
     const STATUS = ["Aguardando aprovação","Aprovado","Pago","Conciliado","Reembolsado"];
     const fill = (el, arr) => el.innerHTML = arr.map(v => `<option value="${v}">${v}</option>`).join("");
 
-    // ---- AUTH (forçar POPUP em GitHub Pages) ----
-async function doLogin() {
-  try {
-    // popup resolve em GitHub Pages sem exigir /__/auth/handler
-    await signInWithPopup(auth, provider);
-  } catch (e) {
-    const code = e?.code || "";
-    // Mensagem clara pro caso de domínio não autorizado
-    if (code === "auth/unauthorized-domain") {
-      document.querySelector("#loginMsg").innerHTML =
-        'Domínio não autorizado no Firebase Auth. Em <b>Authentication → Settings → Authorized domains</b> adicione <b>viictorcastro-beep.github.io</b>.';
-      return;
+    // ---- Collections / Estado ----
+    const colLanc = collection(db, "lancamentos");
+    const colAcertos = collection(db, "acertos");
+    const docConfig = doc(db, "config", "main");
+    const state = { a: "Victor", b: "Gustavo", lanc: [], acertos: [], user: null };
+
+    // ---- Whitelist ----
+    const ALLOW = new Set(['viictor.castro@gmail.com','gcm.conceicao@gmail.com']);
+
+    // ---- AUTH (popup only) ----
+    async function doLogin() {
+      try { await signInWithPopup(auth, provider); }
+      catch (e) {
+        const code = e?.code || "";
+        if (code === "auth/unauthorized-domain") {
+          $("#loginMsg").innerHTML = 'Domínio não autorizado no Firebase Auth. Adicione <b>viictorcastro-beep.github.io</b> em Authorized domains.';
+          return;
+        }
+        if (code.includes("popup-blocked") || code.includes("popup-closed")) {
+          $("#loginMsg").textContent = "Popup bloqueado. Libere popups para este site e tente novamente.";
+          return;
+        }
+        $("#loginMsg").textContent = e.message || String(e);
+      }
     }
-    if (code.includes("popup-blocked") || code.includes("popup-closed")) {
-      document.querySelector("#loginMsg").textContent =
-        "Seu navegador bloqueou o popup. Libere popups para este site e tente de novo.";
-      return;
-    }
-    document.querySelector("#loginMsg").textContent = e.message || String(e);
-  }
-}
+    $("#btnLogin").addEventListener("click", doLogin);
+    $("#btnLogout").addEventListener("click", () => signOut(auth));
 
-document.querySelector("#btnLogin").addEventListener("click", doLogin);
-document.querySelector("#btnLogout").addEventListener("click", () => signOut(auth));
+    // ---- onAuthStateChanged (depois de INIT) ----
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const email = (user.email || '').toLowerCase();
+        if (!ALLOW.has(email)) {
+          $("#loginMsg").textContent = "Acesso negado: e-mail não autorizado.";
+          signOut(auth);
+          return;
+        }
+        state.user = user;
+        $("#login").classList.add("hidden");
+        $("#app").classList.remove("hidden");
+        $("#userPhoto").src = user.photoURL || "";
+        $("#userName").textContent = user.displayName || email;
 
+        // preencher selects agora
+        fill($("#iCat"), CATS); fill($("#iCC"), CC);
+        fill($("#iTipoDoc"), TIPODOC); fill($("#iForma"), FORMA); fill($("#iStatus"), STATUS);
+        refreshLabels();
+        if ($("#iData") && !$("#iData").value) $("#iData").value = new Date().toISOString().slice(0, 10);
 
-
+        startRealtime();
+      } else {
+        state.user = null;
+        $("#app").classList.add("hidden");
+        $("#login").classList.remove("hidden");
+      }
+    });
 
     // ---- Realtime ----
     let unsubLanc = null, unsubAc = null, unsubCfg = null;
@@ -401,26 +384,14 @@ document.querySelector("#btnLogout").addEventListener("click", () => signOut(aut
       fill($("#accPara"), [state.a, state.b]);
       $("#nameA").value = state.a; $("#nameB").value = state.b;
     }
+    $("#nameA").addEventListener("input", async () => { state.a = $("#nameA").value || "A"; await setDoc(docConfig, { a: state.a }, { merge: true }); refreshLabels(); compute(); });
+    $("#nameB").addEventListener("input", async () => { state.b = $("#nameB").value || "B"; await setDoc(docConfig, { b: state.b }, { merge: true }); refreshLabels(); compute(); });
 
-    $("#nameA").addEventListener("input", async () => {
-      state.a = $("#nameA").value || "A";
-      await setDoc(docConfig, { a: state.a }, { merge: true });
-      refreshLabels(); compute();
-    });
-    $("#nameB").addEventListener("input", async () => {
-      state.b = $("#nameB").value || "B";
-      await setDoc(docConfig, { b: state.b }, { merge: true });
-      refreshLabels(); compute();
-    });
-
-    // ---- Lançamentos: add / delete ----
+    // ---- Lançamentos ----
     function msg(text, isError = false) {
-      const el = $("#formMsg");
-      el.textContent = text;
-      el.className = `hint ${isError ? "danger" : ""}`;
+      const el = $("#formMsg"); el.textContent = text; el.className = `hint ${isError ? "danger" : ""}`;
       if (text) setTimeout(() => { el.textContent = ""; el.className = "hint"; }, 2500);
     }
-
     $("#btnAdd").addEventListener("click", async () => {
       const rec = {
         dt: $("#iData").value || new Date().toISOString().slice(0, 10),
@@ -438,11 +409,8 @@ document.querySelector("#btnLogout").addEventListener("click", () => signOut(aut
       if (!rec.desc) return msg("Informe a descrição", true);
       if (!rec.valor || rec.valor <= 0) return msg("Valor deve ser positivo", true);
       if (rec.pA + rec.pB > 1.0001) return msg("Soma de %A + %B não pode exceder 1.0", true);
-      try {
-        await addDoc(colLanc, rec);
-        $$("#iDesc,#iValor,#iNumDoc,#iLink,#iObs").forEach(i => i.value = "");
-        msg("Lançamento adicionado");
-      } catch (e) { alert("Erro ao salvar lançamento: " + (e?.code || e?.message || e)); }
+      try { await addDoc(colLanc, rec); $$("#iDesc,#iValor,#iNumDoc,#iLink,#iObs").forEach(i => i.value = ""); msg("Lançamento adicionado"); }
+      catch (e) { alert("Erro ao salvar lançamento: " + (e?.code || e?.message || e)); }
     });
 
     $("#btnAddTerreno").addEventListener("click", async () => {
@@ -455,51 +423,44 @@ document.querySelector("#btnLogout").addEventListener("click", () => signOut(aut
     });
 
     $("#tBody").addEventListener("click", async (e) => {
-      const btn = e.target.closest("button[data-id]");
-      if (!btn) return;
+      const btn = e.target.closest("button[data-id]"); if (!btn) return;
       const id = btn.getAttribute("data-id");
       if (confirm("Excluir lançamento?")) {
-        try { await deleteDoc(doc(db, "lancamentos", id)); }
-        catch (e) { alert("Erro ao excluir: " + (e?.code || e?.message || e)); }
+        try { await deleteDoc(doc(db, "lancamentos", id)); } catch (e) { alert("Erro ao excluir: " + (e?.code || e?.message || e)); }
       }
     });
 
-    // ---- Acertos: add / delete ----
+    // ---- Acertos ----
     $("#btnAddAcc").addEventListener("click", async () => {
       const de = $("#accDe").value, para = $("#accPara").value;
       const valor = round2(parseMoney($("#accValor").value));
       const link = $("#accLink").value;
       if (!valor || valor <= 0 || !de || !para || de === para) return alert("Verifique valor e participantes.");
-      try {
-        await addDoc(colAcertos, { de, para, valor, link, dt: new Date().toISOString().slice(0, 10), createdBy: state.user?.email || "", createdAt: serverTimestamp() });
-        $("#accValor").value = ""; $("#accLink").value = "";
-      } catch (e) { alert("Erro ao registrar acerto: " + (e?.code || e?.message || e)); }
+      try { await addDoc(colAcertos, { de, para, valor, link, dt: new Date().toISOString().slice(0, 10), createdBy: state.user?.email || "", createdAt: serverTimestamp() });
+        $("#accValor").value = ""; $("#accLink").value = ""; }
+      catch (e) { alert("Erro ao registrar acerto: " + (e?.code || e?.message || e)); }
     });
 
     $("#btnSugestao").addEventListener("click", async () => {
-      const eq = $("#kpiEqual").textContent;
-      const quem = $("#whoPays").textContent;
+      const eq = $("#kpiEqual").textContent; const quem = $("#whoPays").textContent;
       const v = prompt(`Transferência sugerida (de ${quem}):`, eq.replace(/[^0-9.,-]/g, ""));
       const num = round2(parseMoney(v));
       if (num > 0 && quem) {
-        const de = quem;
-        const para = (quem === state.a ? state.b : state.a);
-        try {
-          await addDoc(colAcertos, { de, para, valor: num, link: "", dt: new Date().toISOString().slice(0, 10), createdAt: serverTimestamp() });
-        } catch (e) { alert("Erro ao salvar acerto: " + (e?.code || e?.message || e)); }
+        const de = quem, para = (quem === state.a ? state.b : state.a);
+        try { await addDoc(colAcertos, { de, para, valor: num, link: "", dt: new Date().toISOString().slice(0, 10), createdAt: serverTimestamp() }); }
+        catch (e) { alert("Erro ao salvar acerto: " + (e?.code || e?.message || e)); }
       }
     });
 
     $("#accList").addEventListener("click", async (e) => {
-      const btn = e.target.closest("button[data-id]");
-      if (!btn) return; const id = btn.getAttribute("data-id");
+      const btn = e.target.closest("button[data-id]"); if (!btn) return;
+      const id = btn.getAttribute("data-id");
       if (confirm("Excluir acerto?")) {
-        try { await deleteDoc(doc(db, "acertos", id)); }
-        catch (e) { alert("Erro ao excluir acerto: " + (e?.code || e?.message || e)); }
+        try { await deleteDoc(doc(db, "acertos", id)); } catch (e) { alert("Erro ao excluir acerto: " + (e?.code || e?.message || e)); }
       }
     });
 
-    // ---- Render ----
+    // ---- Render + Cálculo ----
     function renderTable() {
       const tb = $("#tBody"); tb.innerHTML = "";
       const rows = [...state.lanc].sort((a, b) => String(a.dt || "").localeCompare(String(b.dt || "")));
@@ -587,15 +548,13 @@ document.querySelector("#btnLogout").addEventListener("click", () => signOut(aut
       const rows = state.lanc.map(r => head.map(k => esc(r[k])).join(","));
       const csv = [head.join(","), ...rows].join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob); a.download = "lancamentos.csv"; a.click();
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "lancamentos.csv"; a.click();
     }
     async function importCSV(file) {
       const reader = new FileReader();
       reader.onload = async () => {
         const text = reader.result; if (!text) return;
-        const lines = String(text).split(/\r?\n/).filter(Boolean);
-        if (!lines.length) return;
+        const lines = String(text).split(/\r?\n/).filter(Boolean); if (!lines.length) return;
         const head = lines.shift().split(",").map(h => h.replaceAll('"', "").trim());
         const to = (s) => String(s || "").replace(/^\"|\"$/g, "").replaceAll('""','"');
         for (const line of lines) {
@@ -619,16 +578,6 @@ document.querySelector("#btnLogout").addEventListener("click", () => signOut(aut
     }
     $("#btnExportCSV").addEventListener("click", exportCSV);
     $("#fileImport").addEventListener("change", (e) => { if (e.target.files[0]) importCSV(e.target.files[0]); });
-
-    // ---- Aviso amigável se domínio não estiver autorizado ----
-    if (location.hostname.endsWith("github.io")) {
-      // Ajuda quando esquecemos de autorizar o domínio no Firebase
-      auth.onAuthStateChanged(()=>{}, (e)=>{
-        if (e?.code === "auth/unauthorized-domain") {
-          $("#loginMsg").innerHTML = "Domínio não autorizado. Adicione <b>viictorcastro-beep.github.io</b> em Authorized domains (Firebase).";
-        }
-      });
-    }
   </script>
 </body>
 </html>
