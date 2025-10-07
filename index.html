@@ -467,7 +467,8 @@
                     form.reset();
                     document.getElementById('dt').valueAsDate = new Date();
                 } catch (error) {
-                    console.error(error);
+                    // Error is already alerted in handleFileUpload, just log it here
+                    console.error("Form submission error:", error);
                 } finally {
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalBtnText;
@@ -492,7 +493,9 @@
                     await logEvent('Acerto Registado', { de: acerto.de, para: acerto.para, valor: fmt(acerto.valor) });
                     form.reset();
                 } catch (error) {
-                    console.error(error);
+                    // Error is already alerted in handleFileUpload, or it's a form error
+                    if (error.message) alert(error.message);
+                    console.error("Acerto form error:", error);
                 } finally {
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalBtnText;
