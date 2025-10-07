@@ -1,581 +1,458 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>V&G – Gestor de Custos (Firebase + GitHub Pages)</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Custos de Obra - V&G</title>
+    
+    <!-- jsPDF for PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-
-  <style>
-    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial }
-    .card { background: #fff; border-radius: 16px; box-shadow: 0 8px 20px rgba(0,0,0,.06); padding: 20px; }
-    .btn { padding: 10px 14px; border-radius: 12px; font-weight: 600; font-size: 14px; }
-    .btn-prim { background: #0f172a; color: #fff; }
-    .btn-prim:hover { background: #1f2937; }
-    .btn-sec { background: #f3f4f6; }
-    .btn-sec:hover { background: #e5e7eb; }
-    .pill { border-radius: 9999px; padding: 2px 10px; font-size: 12px; background: #f3f4f6; }
-    .hint { font-size: 12px; color: #6b7280; }
-    .danger { color: #dc2626; }
-  </style>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        .hidden { display: none !important; }
+        .modal-overlay { transition: opacity 0.2s ease-in-out; }
+        .progress-bar-bg { background-color: #e5e7eb; }
+        .progress-bar { transition: width 0.3s ease-in-out; }
+    </style>
 </head>
-<body class="bg-slate-50">
+<body class="antialiased text-slate-800">
 
-  <!-- LOGIN -->
-  <div id="login" class="min-h-screen flex items-center justify-center p-6">
-    <div class="card max-w-sm w-full text-center">
-      <h1 class="text-2xl font-bold mb-2">Gestor de Custos — V&G</h1>
-      <p class="text-sm text-slate-600 mb-5">Acesse com Google para abrir o painel colaborativo.</p>
-      <button id="btnLogin" class="btn btn-prim w-full flex items-center justify-center gap-3">
-        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.018,36.33,44,30.651,44,24C44,22.659,43.862,21.35,43.611,20.083z"/></svg>
-        Entrar com Google
-      </button>
-     </div>
-  </div>
-
-  <!-- APP -->
-  <div id="app" class="hidden">
-    <div class="max-w-7xl mx-auto p-5 lg:p-8">
-      <header class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-bold">Gestor de Custos — Victor & Gustavo</h1>
-        <div class="flex items-center gap-3">
-          <img id="userPhoto" class="w-8 h-8 rounded-full" alt="" />
-          <span id="userName" class="text-sm"></span>
-          <button id="btnExportCSV" class="btn btn-sec">Exportar CSV</button>
-          <label class="btn btn-sec cursor-pointer">
-            Importar CSV <input id="fileImport" type="file" accept=".csv" class="hidden" />
-          </label>
-          <button id="btnLogout" class="btn btn-sec">Sair</button>
+    <div id="login-screen" class="min-h-screen flex items-center justify-center p-6">
+        <div class="bg-white rounded-2xl shadow-lg p-8 max-w-sm w-full text-center">
+            <h1 class="text-2xl font-bold mb-2">Gestor de Custos — V&G</h1>
+            <p class="text-sm text-slate-600 mb-5">Acesse com Google para abrir o painel colaborativo.</p>
+            <button id="login-btn" class="bg-slate-900 hover:bg-slate-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center w-full gap-3">
+                <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.018,36.33,44,30.651,44,24C44,22.659,43.862,21.35,43.611,20.083z"/></svg>
+                Entrar com Google
+            </button>
+            <p id="login-msg" class="text-xs text-red-600 mt-4 h-4"></p>
         </div>
-      </header>
-
-      <!-- Participantes + KPIs -->
-      <section class="card mb-6">
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="text-xs text-slate-500">Participante A</label>
-            <input id="nameA" class="w-full border rounded-xl p-2" value="Victor" />
-          </div>
-          <div>
-            <label class="text-xs text-slate-500">Participante B</label>
-            <input id="nameB" class="w-full border rounded-xl p-2" value="Gustavo" />
-          </div>
-        </div>
-        <div class="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div class="card bg-slate-900 text-white">
-            <div class="text-xs opacity-80">Total Geral</div>
-            <div id="kpiTotal" class="text-2xl font-bold">R$ 0,00</div>
-          </div>
-          <div class="card">
-            <div class="text-xs text-slate-500">Pago — <span id="lblA">Victor</span></div>
-            <div id="kpiPagoA" class="text-2xl font-bold">R$ 0,00</div>
-          </div>
-          <div class="card">
-            <div class="text-xs text-slate-500">Pago — <span id="lblB">Gustavo</span></div>
-            <div id="kpiPagoB" class="text-2xl font-bold">R$ 0,00</div>
-          </div>
-          <div class="card">
-            <div class="text-xs text-slate-500">Equalização sugerida</div>
-            <div class="text-sm">Se > 0, <b id="whoPays"></b> paga</div>
-            <div id="kpiEqual" class="text-2xl font-bold">R$ 0,00</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Novo lançamento -->
-      <section class="card mb-6">
-        <h2 class="text-lg font-semibold mb-3">Novo Lançamento</h2>
-        <div class="grid grid-cols-12 gap-3">
-          <div class="col-span-12 md:col-span-2">
-            <label class="text-xs text-slate-500">Data</label>
-            <input id="iData" type="date" class="w-full border rounded-xl p-2" />
-          </div>
-          <div class="col-span-12 md:col-span-4">
-            <label class="text-xs text-slate-500">Descrição</label>
-            <input id="iDesc" class="w-full border rounded-xl p-2" placeholder="Ex.: Quitação terreno QD31 LT32" />
-          </div>
-          <div class="col-span-12 md:col-span-2">
-            <label class="text-xs text-slate-500">Categoria</label>
-            <select id="iCat" class="w-full border rounded-xl p-2"></select>
-          </div>
-          <div class="col-span-12 md:col-span-2">
-            <label class="text-xs text-slate-500">Centro de Custo</label>
-            <select id="iCC" class="w-full border rounded-xl p-2"></select>
-          </div>
-          <div class="col-span-12 md:col-span-2">
-            <label class="text-xs text-slate-500">Valor (R$)</label>
-            <input id="iValor" type="text" inputmode="decimal" class="w-full border rounded-xl p-2" placeholder="Ex.: 1.234,56" />
-            <div class="hint">Use vírgula para centavos</div>
-          </div>
-          <div class="col-span-12 md:col-span-2">
-            <label class="text-xs text-slate-500">Pagador</label>
-            <select id="iPagador" class="w-full border rounded-xl p-2"></select>
-          </div>
-          <div class="col-span-6 md:col-span-1">
-            <label class="text-xs text-slate-500">% A</label>
-            <input id="iPercA" type="number" step="0.01" min="0" max="1" class="w-full border rounded-xl p-2" value="0.5" />
-          </div>
-          <div class="col-span-6 md:col-span-1">
-            <label class="text-xs text-slate-500">% B</label>
-            <input id="iPercB" type="number" step="0.01" min="0" max="1" class="w-full border rounded-xl p-2" value="0.5" />
-          </div>
-          <div class="col-span-12 md:col-span-2">
-            <label class="text-xs text-slate-500">Tipo Doc</label>
-            <select id="iTipoDoc" class="w-full border rounded-xl p-2"></select>
-          </div>
-          <div class="col-span-12 md:col-span-2">
-            <label class="text-xs text-slate-500">Nº Doc</label>
-            <input id="iNumDoc" class="w-full border rounded-xl p-2" placeholder="ID/NSU/Nota" />
-          </div>
-          <div class="col-span-12 md:col-span-2">
-            <label class="text-xs text-slate-500">Forma Pgto</label>
-            <select id="iForma" class="w-full border rounded-xl p-2"></select>
-          </div>
-          <div class="col-span-12 md:col-span-2">
-            <label class="text-xs text-slate-500">Status</label>
-            <select id="iStatus" class="w-full border rounded-xl p-2"></select>
-          </div>
-          <div class="col-span-12 md:col-span-4">
-            <label class="text-xs text-slate-500">Comprovante (URL)</label>
-            <input id="iLink" class="w-full border rounded-xl p-2" placeholder="https://..." />
-          </div>
-          <div class="col-span-12">
-            <label class="text-xs text-slate-500">Observações</label>
-            <input id="iObs" class="w-full border rounded-xl p-2" placeholder="Notas adicionais" />
-          </div>
-        </div>
-        <div class="mt-4 flex gap-2 items-center">
-          <button id="btnAdd" class="btn btn-prim">Adicionar</button>
-          <button id="btnAddTerreno" class="btn btn-sec">Lançar Terreno (R$ 45.000 – Victor)</button>
-          <span id="formMsg" class="hint"></span>
-        </div>
-      </section>
-
-      <!-- Lançamentos + Acertos -->
-      <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div class="card lg:col-span-2 overflow-x-auto">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="text-lg font-semibold">Lançamentos</h2>
-            <div class="hint">Sem comprovante, sem reembolso.</div>
-          </div>
-          <table class="w-full">
-            <thead class="text-xs text-slate-500">
-              <tr class="border-b">
-                <th class="py-2 text-left">Data</th>
-                <th class="py-2 text-left">Descrição</th>
-                <th class="py-2 text-left">Categoria</th>
-                <th class="py-2 text-left">Centro</th>
-                <th class="py-2 text-right">Valor</th>
-                <th class="py-2 text-left">Pagador</th>
-                <th class="py-2 text-center">%A</th>
-                <th class="py-2 text-center">%B</th>
-                <th class="py-2 text-left">Tipo</th>
-                <th class="py-2 text-left">Nº</th>
-                <th class="py-2 text-left">Forma</th>
-                <th class="py-2 text-left">Status</th>
-                <th class="py-2 text-left">Comprovante</th>
-                <th class="py-2"></th>
-              </tr>
-            </thead>
-            <tbody id="tBody"></tbody>
-          </table>
-        </div>
-
-        <div class="card">
-          <h2 class="text-lg font-semibold mb-3">Acertos (transferências)</h2>
-          <div class="grid grid-cols-2 gap-3 mb-3">
-            <div>
-              <label class="text-xs text-slate-500">De</label>
-              <select id="accDe" class="w-full border rounded-xl p-2"></select>
-            </div>
-            <div>
-              <label class="text-xs text-slate-500">Para</label>
-              <select id="accPara" class="w-full border rounded-xl p-2"></select>
-            </div>
-            <div class="col-span-2">
-              <label class="text-xs text-slate-500">Valor (R$)</label>
-              <input id="accValor" type="text" inputmode="decimal" class="w-full border rounded-xl p-2" placeholder="Ex.: 22.500,00" />
-            </div>
-            <div class="col-span-2">
-              <label class="text-xs text-slate-500">Link do comprovante</label>
-              <input id="accLink" class="w-full border rounded-xl p-2" placeholder="https://..." />
-            </div>
-          </div>
-          <div class="flex gap-2 mb-4">
-            <button id="btnAddAcc" class="btn btn-prim">Registrar Acerto</button>
-            <button id="btnSugestao" class="btn btn-sec">Usar Sugestão</button>
-          </div>
-          <div>
-            <h3 class="text-sm font-semibold mb-2">Histórico</h3>
-            <ul id="accList" class="space-y-2 text-sm"></ul>
-          </div>
-        </div>
-      </section>
-
-      <!-- Resumo -->
-      <section class="card">
-        <h2 class="text-lg font-semibold mb-3">Resumo</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <div class="text-xs text-slate-500">Total Geral</div>
-            <div id="rTotal" class="text-xl font-bold">R$ 0,00</div>
-          </div>
-          <div>
-            <div class="text-xs text-slate-500">Devido (50%) — <span id="lblA2">Victor</span></div>
-            <div id="rDevA" class="text-xl font-bold">R$ 0,00</div>
-          </div>
-          <div>
-            <div class="text-xs text-slate-500">Devido (50%) — <span id="lblB2">Gustavo</span></div>
-            <div id="rDevB" class="text-xl font-bold">R$ 0,00</div>
-          </div>
-          <div>
-            <div class="text-xs text-slate-500">Pago — <span id="lblA3">Victor</span></div>
-            <div id="rPagoA" class="text-xl font-bold">R$ 0,00</div>
-          </div>
-          <div>
-            <div class="text-xs text-slate-500">Pago — <span id="lblB3">Gustavo</span></div>
-            <div id="rPagoB" class="text-xl font-bold">R$ 0,00</div>
-          </div>
-          <div>
-            <div class="text-xs text-slate-500">Saldo — <span id="lblA4">Victor</span> (pós-acertos)</div>
-            <div id="rSaldoA" class="text-xl font-bold">R$ 0,00</div>
-          </div>
-          <div>
-            <div class="text-xs text-slate-500">Saldo — <span id="lblB4">Gustavo</span> (pós-acertos)</div>
-            <div id="rSaldoB" class="text-xl font-bold">R$ 0,00</div>
-          </div>
-        </div>
-      </section>
     </div>
-  </div>
 
-  <!-- Firebase (modular v9) -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, doc, setDoc, deleteDoc, onSnapshot, orderBy, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+    <div id="app-wrapper" class="hidden">
+         <div id="app" class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
+            <header class="mb-8">
+                <div class="flex flex-wrap justify-between items-center gap-4">
+                     <h1 id="main-title" class="text-3xl font-bold text-slate-900">Gestor de Custos de Obra</h1>
+                     <div id="user-info" class="flex items-center gap-4">
+                        <img id="user-photo" class="w-10 h-10 rounded-full">
+                        <span id="user-name" class="font-semibold"></span>
+                        <button id="logout-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Sair</button>
+                    </div>
+                </div>
+                 <div class="mt-4 flex flex-wrap justify-between items-center gap-4">
+                    <div class="p-4 bg-slate-200 rounded-lg flex flex-wrap gap-4 items-center">
+                        <span class="font-semibold">Sócios:</span>
+                        <input type="text" id="participant-a" class="px-2 py-1 font-bold border rounded-md w-32">
+                        <span>&</span>
+                        <input type="text" id="participant-b" class="px-2 py-1 font-bold border rounded-md w-32">
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button id="manage-budget-btn" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Orçamento</button>
+                        <button id="export-pdf-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Exportar PDF</button>
+                    </div>
+                </div>
+            </header>
+            <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2 space-y-8">
+                    <section><h2 class="text-2xl font-bold mb-4 text-slate-800">Dashboard da Obra</h2><div id="dashboard-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"></div></section>
+                    <section id="balanca-acerto-card" class="p-6 rounded-2xl shadow-lg text-center"><h2 class="text-xl font-bold mb-2">Balança de Acerto</h2><div id="balanca-content"></div></section>
+                    <section class="bg-white p-6 rounded-2xl shadow-lg">
+                        <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold">Novo Lançamento</h2><button id="quick-add-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg shadow-md">Rápido</button></div>
+                        <form id="lancamento-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <input type="date" id="dt" class="sm:col-span-1 border p-2 rounded-md" required>
+                            <input type="text" id="desc" placeholder="Descrição" class="sm:col-span-3 border p-2 rounded-md" required>
+                            <select id="cat" class="border p-2 rounded-md"></select>
+                            <select id="cc" class="border p-2 rounded-md"></select>
+                            <input type="text" id="valor" placeholder="Valor" class="border p-2 rounded-md" required>
+                            <select id="pagador" class="border p-2 rounded-md"></select>
+                            <div><label id="label-pa" class="text-sm">Sócio A (%):</label><input type="number" id="pA" step="0.01" min="0" max="1" value="0.5" class="w-full border p-2 rounded-md" required></div>
+                            <div><label id="label-pb" class="text-sm">Sócio B (%):</label><input type="number" id="pB" step="0.01" min="0" max="1" value="0.5" class="w-full border p-2 rounded-md" required></div>
+                            <input type="file" id="anexo" accept=".pdf,.jpeg,.jpg,.png" class="sm:col-span-4 border p-2 rounded-md file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                            <div class="sm:col-span-4 flex flex-wrap items-center gap-4"><button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow-md">Adicionar</button></div>
+                        </form>
+                    </section>
+                     <section class="bg-white p-6 rounded-2xl shadow-lg">
+                        <div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-xl font-bold">Lançamentos</h2><div class="flex items-center gap-2"><label for="filter-cc" class="text-sm font-medium">Filtrar por CC:</label><select id="filter-cc" class="border p-2 rounded-md text-sm"></select></div></div>
+                        <div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="bg-slate-100"><tr><th class="p-2">Data</th><th class="p-2">Descrição</th><th class="p-2">Valor</th><th class="p-2">Pagador</th><th class="p-2">Anexo</th><th class="p-2">Ação</th></tr></thead><tbody id="lancamentos-table-body"></tbody></table></div>
+                    </section>
+                </div>
+                <aside class="space-y-8">
+                    <section><h2 class="text-2xl font-bold mb-4 text-slate-800">Resumo Financeiro</h2><div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div class="bg-white p-4 rounded-2xl shadow-md text-center"><h3 class="text-sm font-semibold text-slate-500">Total Geral</h3><p id="kpi-total" class="text-2xl font-bold"></p></div><div class="bg-yellow-100 border border-yellow-300 p-4 rounded-2xl shadow-md text-center"><h3 class="text-sm font-semibold text-slate-600">Equalização</h3><p id="kpi-equalizacao" class="text-xl font-bold"></p></div></div></section>
+                    <section class="bg-white p-6 rounded-2xl shadow-lg"><h2 class="text-xl font-bold mb-4">Acertos</h2><form id="acerto-form" class="space-y-4"><div class="grid grid-cols-2 gap-4"><div><label for="de" class="block text-sm">De:</label><select id="de" class="w-full border p-2 rounded-md"></select></div><div><label for="para" class="block text-sm">Para:</label><select id="para" class="w-full border p-2 rounded-md"></select></div></div><div><label for="valor-acerto" class="block text-sm">Valor:</label><input type="text" id="valor-acerto" class="w-full border p-2 rounded-md" required></div><div><label for="anexo-acerto" class="block text-sm">Anexo:</label><input type="file" id="anexo-acerto" class="w-full border p-2 rounded-md"></div><div class="flex gap-2"><button type="submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 rounded-md shadow-sm">Registrar</button><button type="button" id="sugestao-btn" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 rounded-md shadow-sm">Sugestão</button></div></form><div class="mt-6"><h3 class="font-semibold mb-2">Histórico de Acertos</h3><ul id="acertos-list" class="space-y-2 text-sm"></ul></div></section>
+                    <section class="bg-white p-6 rounded-2xl shadow-lg"><h2 class="text-xl font-bold mb-4">Detalhes por Sócio</h2><div id="resumo-socios" class="space-y-4"></div></section>
+                </aside>
+            </main>
+        </div>
+        <div id="quick-add-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-md"><h2 class="text-xl font-bold mb-4">Lançamento Rápido</h2><form id="quick-add-form"><div class="space-y-4"><input type="text" id="quick-desc" class="w-full border p-2 rounded-md" placeholder="Descrição" required><input type="text" id="quick-valor" class="w-full border p-2 rounded-md" placeholder="Valor" required><select id="quick-pagador" class="w-full border p-2 rounded-md"></select></div><div class="flex gap-4 mt-6"><button type="submit" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 rounded-md">Adicionar</button><button type="button" id="quick-add-cancel" class="w-full bg-gray-300 hover:bg-gray-400 font-bold py-2 rounded-md">Cancelar</button></div></form></div></div>
+        <div id="budget-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-2xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Gerir Orçamento</h2><form id="budget-form" class="flex-grow overflow-y-auto pr-2"><div id="budget-fields" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div></form><div class="flex gap-4 mt-6 pt-4 border-t"><button type="button" id="budget-save" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 rounded-md">Salvar</button><button type="button" id="budget-cancel" class="w-full bg-gray-300 hover:bg-gray-400 font-bold py-2 rounded-md">Cancelar</button></div></div></div>
+    </div>
+    <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-[100] hidden"><div class="loader"></div></div>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, setDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-storage.js";
 
-    // ---- CONFIG ----
-    const firebaseConfig = {
-      apiKey: "AIzaSyA9GTueuXozK7FZPl-MSnXfbn4d9ex2Mm8",
-      authDomain: "qd61lt32.firebaseapp.com",
-      projectId: "qd61lt32",
-      storageBucket: "qd61lt32.appspot.com",
-      messagingSenderId: "636694484879",
-      appId: "1:636694484879:web:9f321f56f1e72895c25dfa",
-      measurementId: "G-QT2KJL124T"
-    };
+        const firebaseConfig = {
+            apiKey: "AIzaSyA9GTueuXozK7FZPl-MSnXfbn4d9ex2Mm8",
+            authDomain: "qd61lt32.firebaseapp.com",
+            projectId: "qd61lt32",
+            storageBucket: "qd61lt32.firebasestorage.app",
+            messagingSenderId: "636694484879",
+            appId: "1:636694484879:web:9f321f56f1e72895c25dfa",
+            measurementId: "G-QT2KJL124T"
+        };
 
-    // ---- INIT (antes de QUALQUER uso de auth!) ----
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
-    const provider = new GoogleAuthProvider();
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const storage = getStorage(app);
+        const provider = new GoogleAuthProvider();
 
-    // ---- Helpers ----
-    const $ = (s) => document.querySelector(s);
-    const $$ = (s) => Array.from(document.querySelectorAll(s));
-    const toBRL = (n) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-    const round2 = (x) => Math.round((Number(x) || 0) * 100) / 100;
-    const parseMoney = (v) => { if (v == null) return 0; const s = String(v).trim(); if (!s) return 0; const cleaned = s.replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3}(\D|$))/g, ""); return parseFloat(cleaned.replace(",", ".")) || 0; };
-    const pctClamp = (x) => { const n = Number(x); if (isNaN(n)) return 0.5; return Math.min(1, Math.max(0, n)); };
+        const lancamentosCol = collection(db, "lancamentos");
+        const acertosCol = collection(db, "acertos");
+        const configDocRef = doc(db, "config", "main");
 
-    // ---- Listas fixas (precisam existir antes do onAuthStateChanged) ----
-    const CATS = ["Terreno","Projeto","Material","Mão de Obra","Serviços","Licenças/Taxas","Transporte/Logística","Outros"];
-    const CC = ["Terreno","Projeto","Fundações","Estrutura/Alvenaria","Cobertura","Elétrica","Hidráulica","Revestimentos/Pisos","Esquadrias/Vidros","Pintura","Paisagismo","Licenças/Taxas","Equalização","Outros"];
-    const TIPODOC = ["NF-e (produto)","NFS-e (serviço)","Recibo","RPA","Sem documento"];
-    const FORMA = ["PIX","Cartão (crédito)","Cartão (débito)","Boleto","Dinheiro","Transferência"];
-    const STATUS = ["Aguardando aprovação","Aprovado","Pago","Conciliado","Reembolsado"];
-    const fill = (el, arr) => el.innerHTML = arr.map(v => `<option value="${v}">${v}</option>`).join("");
+        const loginScreen = document.getElementById('login-screen');
+        const appWrapper = document.getElementById('app-wrapper');
+        const loadingOverlay = document.getElementById('loading-overlay');
 
-    // ---- Collections / Estado ----
-    const colLanc = collection(db, "lancamentos");
-    const colAcertos = collection(db, "acertos");
-    const docConfig = doc(db, "config", "main");
-    const state = { a: "Victor", b: "Gustavo", lanc: [], acertos: [], user: null };
+        let currentUser = null;
+        let state = { lancamentos: [], acertos: [], config: null };
+        let listeners = [];
+        let cachedCalculations = {};
+        
+        const PREDEFINED_LISTS = {
+            categorias: ['Outros', 'Terreno', 'Projeto', 'Material', 'Mão de Obra', 'Serviços', 'Licenças/Taxas', 'Transporte/Logística'],
+            centrosDeCusto: ['Outros', 'Terreno', 'Projeto', 'Fundações', 'Estrutura/Alvenaria', 'Cobertura', 'Elétrica', 'Hidráulica', 'Revestimentos/Pisos', 'Esquadrias/Vidros', 'Pintura', 'Paisagismo', 'Licenças/Taxas', 'Equalização'],
+        };
+        const fmt = (n) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n || 0);
+        const parseNum = (v) => parseFloat(String(v || '').replace(/\./g, '').replace(',', '.')) || 0;
+        const ALLOW_EMAILS = new Set(['viictor.castro@gmail.com', 'gcm.conceicao@gmail.com']);
 
-    // ---- Whitelist ----
-    const ALLOW = new Set(['viictor.castro@gmail.com','gcm.conceicao@gmail.com']);
-
-    // ---- AUTH (popup only) ----
-    async function doLogin() {
-      try { await signInWithPopup(auth, provider); }
-      catch (e) {
-        const code = e?.code || "";
-        if (code === "auth/unauthorized-domain") {
-          $("#loginMsg").innerHTML = 'Domínio não autorizado no Firebase Auth. Adicione <b>viictorcastro-beep.github.io</b> em Authorized domains.';
-          return;
-        }
-        if (code.includes("popup-blocked") || code.includes("popup-closed")) {
-          $("#loginMsg").textContent = "Popup bloqueado. Libere popups para este site e tente novamente.";
-          return;
-        }
-        $("#loginMsg").textContent = e.message || String(e);
-      }
-    }
-    $("#btnLogin").addEventListener("click", doLogin);
-    $("#btnLogout").addEventListener("click", () => signOut(auth));
-
-    // ---- onAuthStateChanged (depois de INIT) ----
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        const email = (user.email || '').toLowerCase();
-        if (!ALLOW.has(email)) {
-          $("#loginMsg").textContent = "Acesso negado: e-mail não autorizado.";
-          signOut(auth);
-          return;
-        }
-        state.user = user;
-        $("#login").classList.add("hidden");
-        $("#app").classList.remove("hidden");
-        $("#userPhoto").src = user.photoURL || "";
-        $("#userName").textContent = user.displayName || email;
-
-        // preencher selects agora
-        fill($("#iCat"), CATS); fill($("#iCC"), CC);
-        fill($("#iTipoDoc"), TIPODOC); fill($("#iForma"), FORMA); fill($("#iStatus"), STATUS);
-        refreshLabels();
-        if ($("#iData") && !$("#iData").value) $("#iData").value = new Date().toISOString().slice(0, 10);
-
-        startRealtime();
-      } else {
-        state.user = null;
-        $("#app").classList.add("hidden");
-        $("#login").classList.remove("hidden");
-      }
-    });
-
-    // ---- Realtime ----
-    let unsubLanc = null, unsubAc = null, unsubCfg = null;
-    function startRealtime() {
-      if (unsubLanc) unsubLanc(); if (unsubAc) unsubAc(); if (unsubCfg) unsubCfg();
-
-      unsubLanc = onSnapshot(query(colLanc, orderBy("dt", "asc")), (snap) => {
-        state.lanc = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        compute();
-      });
-      unsubAc = onSnapshot(query(colAcertos, orderBy("dt", "asc")), (snap) => {
-        state.acertos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        compute();
-      });
-      unsubCfg = onSnapshot(docConfig, (d) => {
-        if (d.exists()) {
-          const c = d.data();
-          state.a = c.a || state.a;
-          state.b = c.b || state.b;
-        } else {
-          setDoc(docConfig, { a: state.a, b: state.b }, { merge: true });
-        }
-        refreshLabels(); compute();
-      });
-    }
-
-    // ---- UI: nomes/labels ----
-    function refreshLabels() {
-      $$("#lblA, #lblA2, #lblA3, #lblA4").forEach(n => n.textContent = state.a);
-      $$("#lblB, #lblB2, #lblB3, #lblB4").forEach(n => n.textContent = state.b);
-      fill($("#iPagador"), [state.a, state.b]);
-      fill($("#accDe"), [state.a, state.b]);
-      fill($("#accPara"), [state.a, state.b]);
-      $("#nameA").value = state.a; $("#nameB").value = state.b;
-    }
-    $("#nameA").addEventListener("input", async () => { state.a = $("#nameA").value || "A"; await setDoc(docConfig, { a: state.a }, { merge: true }); refreshLabels(); compute(); });
-    $("#nameB").addEventListener("input", async () => { state.b = $("#nameB").value || "B"; await setDoc(docConfig, { b: state.b }, { merge: true }); refreshLabels(); compute(); });
-
-    // ---- Lançamentos ----
-    function msg(text, isError = false) {
-      const el = $("#formMsg"); el.textContent = text; el.className = `hint ${isError ? "danger" : ""}`;
-      if (text) setTimeout(() => { el.textContent = ""; el.className = "hint"; }, 2500);
-    }
-    $("#btnAdd").addEventListener("click", async () => {
-      const rec = {
-        dt: $("#iData").value || new Date().toISOString().slice(0, 10),
-        desc: ($("#iDesc").value || "").trim(),
-        cat: $("#iCat").value, cc: $("#iCC").value,
-        valor: round2(parseMoney($("#iValor").value)),
-        pagador: $("#iPagador").value,
-        pA: pctClamp($("#iPercA").value), pB: pctClamp($("#iPercB").value),
-        tipo: $("#iTipoDoc").value, num: $("#iNumDoc").value,
-        forma: $("#iForma").value, status: $("#iStatus").value,
-        link: $("#iLink").value, obs: $("#iObs").value,
-        createdBy: state.user?.displayName || state.user?.email || "",
-        createdAt: serverTimestamp()
-      };
-      if (!rec.desc) return msg("Informe a descrição", true);
-      if (!rec.valor || rec.valor <= 0) return msg("Valor deve ser positivo", true);
-      if (rec.pA + rec.pB > 1.0001) return msg("Soma de %A + %B não pode exceder 1.0", true);
-      try { await addDoc(colLanc, rec); $$("#iDesc,#iValor,#iNumDoc,#iLink,#iObs").forEach(i => i.value = ""); msg("Lançamento adicionado"); }
-      catch (e) { alert("Erro ao salvar lançamento: " + (e?.code || e?.message || e)); }
-    });
-
-    $("#btnAddTerreno").addEventListener("click", async () => {
-      const hoje = new Date().toISOString().slice(0, 10);
-      const base = { cat: "Terreno", cc: "Terreno", pagador: state.a, pA: 0.5, pB: 0.5, tipo: "Recibo", num: "PIX", forma: "PIX", status: "Conciliado", link: "", obs: "" };
-      try {
-        await addDoc(colLanc, { ...base, dt: hoje, desc: "Entrada terreno QD31 LT32", valor: 5000, createdBy: state.user?.email || "", createdAt: serverTimestamp() });
-        await addDoc(colLanc, { ...base, dt: hoje, desc: "Quitação terreno QD31 LT32", valor: 40000, createdBy: state.user?.email || "", createdAt: serverTimestamp() });
-      } catch (e) { alert("Erro ao lançar terreno: " + (e?.code || e?.message || e)); }
-    });
-
-    $("#tBody").addEventListener("click", async (e) => {
-      const btn = e.target.closest("button[data-id]"); if (!btn) return;
-      const id = btn.getAttribute("data-id");
-      if (confirm("Excluir lançamento?")) {
-        try { await deleteDoc(doc(db, "lancamentos", id)); } catch (e) { alert("Erro ao excluir: " + (e?.code || e?.message || e)); }
-      }
-    });
-
-    // ---- Acertos ----
-    $("#btnAddAcc").addEventListener("click", async () => {
-      const de = $("#accDe").value, para = $("#accPara").value;
-      const valor = round2(parseMoney($("#accValor").value));
-      const link = $("#accLink").value;
-      if (!valor || valor <= 0 || !de || !para || de === para) return alert("Verifique valor e participantes.");
-      try { await addDoc(colAcertos, { de, para, valor, link, dt: new Date().toISOString().slice(0, 10), createdBy: state.user?.email || "", createdAt: serverTimestamp() });
-        $("#accValor").value = ""; $("#accLink").value = ""; }
-      catch (e) { alert("Erro ao registrar acerto: " + (e?.code || e?.message || e)); }
-    });
-
-    $("#btnSugestao").addEventListener("click", async () => {
-      const eq = $("#kpiEqual").textContent; const quem = $("#whoPays").textContent;
-      const v = prompt(`Transferência sugerida (de ${quem}):`, eq.replace(/[^0-9.,-]/g, ""));
-      const num = round2(parseMoney(v));
-      if (num > 0 && quem) {
-        const de = quem, para = (quem === state.a ? state.b : state.a);
-        try { await addDoc(colAcertos, { de, para, valor: num, link: "", dt: new Date().toISOString().slice(0, 10), createdAt: serverTimestamp() }); }
-        catch (e) { alert("Erro ao salvar acerto: " + (e?.code || e?.message || e)); }
-      }
-    });
-
-    $("#accList").addEventListener("click", async (e) => {
-      const btn = e.target.closest("button[data-id]"); if (!btn) return;
-      const id = btn.getAttribute("data-id");
-      if (confirm("Excluir acerto?")) {
-        try { await deleteDoc(doc(db, "acertos", id)); } catch (e) { alert("Erro ao excluir acerto: " + (e?.code || e?.message || e)); }
-      }
-    });
-
-    // ---- Render + Cálculo ----
-    function renderTable() {
-      const tb = $("#tBody"); tb.innerHTML = "";
-      const rows = [...state.lanc].sort((a, b) => String(a.dt || "").localeCompare(String(b.dt || "")));
-      rows.forEach(r => {
-        const tr = document.createElement("tr"); tr.className = "border-b hover:bg-slate-50";
-        const pA = (r.pA ?? 0.5), pB = (r.pB ?? 0.5);
-        tr.innerHTML = `
-          <td class="py-2">${r.dt || ""}</td>
-          <td>${r.desc || ""}</td>
-          <td><span class="pill">${r.cat || ""}</span></td>
-          <td>${r.cc || ""}</td>
-          <td class="text-right">${toBRL(r.valor || 0)}</td>
-          <td>${r.pagador || ""}</td>
-          <td class="text-center">${Math.round(pA * 100)}%</td>
-          <td class="text-center">${Math.round(pB * 100)}%</td>
-          <td>${r.tipo || ""}</td>
-          <td>${r.num || ""}</td>
-          <td>${r.forma || ""}</td>
-          <td>${r.status || ""}</td>
-          <td>${r.link ? `<a class="text-blue-700 underline" href="${r.link}" target="_blank" rel="noopener">abrir</a>` : ""}</td>
-          <td><button data-id="${r.id}" class="btn btn-sec text-xs">Excluir</button></td>`;
-        tb.appendChild(tr);
-      });
-    }
-
-    function renderAcertos() {
-      const ul = $("#accList"); ul.innerHTML = "";
-      const rows = [...state.acertos].sort((a, b) => String(a.dt || "").localeCompare(String(b.dt || "")));
-      rows.forEach(a => {
-        const li = document.createElement("li");
-        li.innerHTML = `<div class="flex items-center justify-between">
-          <div><span class="pill">${a.dt || ""}</span> <b>${a.de}</b> → <b>${a.para}</b> • ${toBRL(a.valor)} ${a.link ? `• <a class="text-blue-700 underline" href="${a.link}" target="_blank" rel="noopener">comprovante</a>` : ""}</div>
-          <button data-id="${a.id}" class="btn btn-sec text-xs">Excluir</button>
-        </div>`;
-        ul.appendChild(li);
-      });
-    }
-
-    function compute() {
-      const total = round2(state.lanc.reduce((s, r) => s + Number(r.valor || 0), 0));
-      const pagoA = round2(state.lanc.filter(r => r.pagador === state.a).reduce((s, r) => s + Number(r.valor || 0), 0));
-      const pagoB = round2(state.lanc.filter(r => r.pagador === state.b).reduce((s, r) => s + Number(r.valor || 0), 0));
-      const devA = round2(state.lanc.reduce((s, r) => s + Number(r.valor || 0) * (r.pA != null ? pctClamp(r.pA) : 0.5), 0));
-      const devB = round2(state.lanc.reduce((s, r) => s + Number(r.valor || 0) * (r.pB != null ? pctClamp(r.pB) : 0.5), 0));
-
-      const saldoA_bruto = round2(pagoA - devA);
-      const saldoB_bruto = round2(pagoB - devB);
-
-      const recA = round2(state.acertos.filter(a => a.para === state.a).reduce((s, a) => s + Number(a.valor || 0), 0));
-      const pagA = round2(state.acertos.filter(a => a.de === state.a).reduce((s, a) => s + Number(a.valor || 0), 0));
-      const recB = round2(state.acertos.filter(a => a.para === state.b).reduce((s, a) => s + Number(a.valor || 0), 0));
-      const pagB = round2(state.acertos.filter(a => a.de === state.b).reduce((s, a) => s + Number(a.valor || 0), 0));
-
-      const saldoA = round2(saldoA_bruto + recA - pagA);
-      const saldoB = round2(saldoB_bruto + recB - pagB);
-
-      let sugerido = 0; let quemPaga = "";
-      if (saldoA > 0 && saldoB < 0) { sugerido = Math.min(saldoA, -saldoB); quemPaga = state.b; }
-      else if (saldoB > 0 && saldoA < 0) { sugerido = Math.min(saldoB, -saldoA); quemPaga = state.a; }
-
-      // KPIs
-      $("#kpiTotal").textContent = toBRL(total);
-      $("#kpiPagoA").textContent = toBRL(pagoA);
-      $("#kpiPagoB").textContent = toBRL(pagoB);
-      $("#kpiEqual").textContent = toBRL(sugerido);
-      $("#whoPays").textContent = quemPaga || "";
-
-      // Resumo
-      $("#rTotal").textContent = toBRL(total);
-      $("#rDevA").textContent = toBRL(devA);
-      $("#rDevB").textContent = toBRL(devB);
-      $("#rPagoA").textContent = toBRL(pagoA);
-      $("#rPagoB").textContent = toBRL(pagoB);
-      $("#rSaldoA").textContent = toBRL(saldoA);
-      $("#rSaldoB").textContent = toBRL(saldoB);
-
-      renderTable();
-      renderAcertos();
-    }
-
-    // ---- CSV ----
-    function exportCSV() {
-      const esc = (v) => `"${String(v ?? "").replaceAll('"', '""')}"`;
-      const head = ["dt","desc","cat","cc","valor","pagador","pA","pB","tipo","num","forma","status","link","obs"];
-      const rows = state.lanc.map(r => head.map(k => esc(r[k])).join(","));
-      const csv = [head.join(","), ...rows].join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "lancamentos.csv"; a.click();
-    }
-    async function importCSV(file) {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const text = reader.result; if (!text) return;
-        const lines = String(text).split(/\r?\n/).filter(Boolean); if (!lines.length) return;
-        const head = lines.shift().split(",").map(h => h.replaceAll('"', "").trim());
-        const to = (s) => String(s || "").replace(/^\"|\"$/g, "").replaceAll('""','"');
-        for (const line of lines) {
-          const cells = line.match(/(?:\"[^\"]*\"|[^,])+/g) || [];
-          const rec = {}; head.forEach((h, i) => rec[h] = to(cells[i] || ""));
-          try {
-            await addDoc(colLanc, {
-              dt: rec.dt || new Date().toISOString().slice(0, 10),
-              desc: (rec.desc || "").trim(),
-              cat: rec.cat || "Outros", cc: rec.cc || "Outros",
-              valor: round2(parseMoney(rec.valor)),
-              pagador: rec.pagador || state.a,
-              pA: pctClamp(rec.pA), pB: pctClamp(rec.pB),
-              tipo: rec.tipo || "", num: rec.num || "", forma: rec.forma || "", status: rec.status || "", link: rec.link || "", obs: rec.obs || "",
-              createdBy: state.user?.email || "", createdAt: serverTimestamp()
+        document.getElementById('login-btn').addEventListener('click', () => {
+            signInWithPopup(auth, provider).catch(error => {
+                console.error("Login Error:", error);
+                const msgEl = document.getElementById('login-msg');
+                if(error.code === 'auth/unauthorized-domain') {
+                    msgEl.textContent = 'Domínio não autorizado. Verifique a configuração no Firebase.';
+                } else {
+                    msgEl.textContent = 'Erro ao fazer login.';
+                }
             });
-          } catch (e) { console.error("CSV linha com erro:", e); }
+        });
+
+        onAuthStateChanged(auth, user => {
+            if (user && ALLOW_EMAILS.has(user.email)) {
+                currentUser = user;
+                loginScreen.classList.add('hidden');
+                loadingOverlay.classList.remove('hidden');
+                appWrapper.classList.remove('hidden');
+                addEventListeners();
+                setupRealtimeListeners();
+            } else {
+                if (user) signOut(auth); // Força o logout se o email não for autorizado
+                currentUser = null;
+                appWrapper.classList.add('hidden');
+                loginScreen.classList.remove('hidden');
+                listeners.forEach(unsubscribe => unsubscribe());
+                listeners = [];
+            }
+        });
+
+        function setupRealtimeListeners() {
+            listeners.forEach(unsubscribe => unsubscribe());
+            listeners = [];
+            let configLoaded = false;
+
+            const onAllDataLoaded = () => {
+                if (!configLoaded) return;
+                loadingOverlay.classList.add('hidden');
+                rerender();
+            };
+
+            const unsubLancamentos = onSnapshot(query(lancamentosCol, orderBy("dt", "desc")), snap => { state.lancamentos = snap.docs.map(d => ({...d.data(), id: d.id })); onAllDataLoaded(); });
+            const unsubAcertos = onSnapshot(query(acertosCol, orderBy("dt", "desc")), snap => { state.acertos = snap.docs.map(d => ({...d.data(), id: d.id })); onAllDataLoaded(); });
+            const unsubConfig = onSnapshot(configDocRef, doc => { 
+                state.config = doc.exists() ? doc.data() : { a: 'Sócio A', b: 'Sócio B', budget: { cc: {} } };
+                configLoaded = true;
+                onAllDataLoaded();
+            });
+            
+            listeners.push(unsubLancamentos, unsubAcertos, unsubConfig);
         }
-      };
-      reader.readAsText(file, "utf-8");
-    }
-    $("#btnExportCSV").addEventListener("click", exportCSV);
-    $("#fileImport").addEventListener("change", (e) => { if (e.target.files[0]) importCSV(e.target.files[0]); });
-  </script>
+        
+        function compute() {
+            if (!state.config) return;
+            const { lancamentos, acertos, config } = state;
+            const { a, b } = config;
+            
+            const totalGeral = lancamentos.reduce((s, l) => s + l.valor, 0);
+            const pagoPorA = lancamentos.filter(l => l.pagador === a).reduce((s, l) => s + l.valor, 0);
+            const pagoPorB = lancamentos.filter(l => l.pagador === b).reduce((s, l) => s + l.valor, 0);
+            const devidoPorA = lancamentos.reduce((s, l) => s + (l.valor * (l.pA || 0.5)), 0);
+            const devidoPorB = lancamentos.reduce((s, l) => s + (l.valor * (l.pB || 0.5)), 0);
+            
+            const acertosRecebidosA = acertos.filter(ac => ac.para === a).reduce((s, ac) => s + ac.valor, 0);
+            const acertosPagosA = acertos.filter(ac => ac.de === a).reduce((s, ac) => s + ac.valor, 0);
+            const saldoPosAcertosA = (pagoPorA - devidoPorA) + acertosRecebidosA - acertosPagosA;
+
+            const acertosRecebidosB = acertos.filter(ac => ac.para === b).reduce((s, ac) => s + ac.valor, 0);
+            const acertosPagosB = acertos.filter(ac => ac.de === b).reduce((s, ac) => s + ac.valor, 0);
+            const saldoPosAcertosB = (pagoPorB - devidoPorB) + acertosRecebidosB - acertosPagosB;
+
+            let equalizacao = { valor: 0, texto: 'Saldos zerados' };
+            if (saldoPosAcertosA > 0.01) {
+                equalizacao = { valor: saldoPosAcertosA, de: b, para: a, texto: `${b} paga ${fmt(saldoPosAcertosA)}` };
+            } else if (saldoPosAcertosB > 0.01) {
+                equalizacao = { valor: saldoPosAcertosB, de: a, para: b, texto: `${a} paga ${fmt(saldoPosAcertosB)}` };
+            }
+
+            const realizadoPorCC = lancamentos.reduce((acc, l) => { acc[l.cc] = (acc[l.cc] || 0) + l.valor; return acc; }, {});
+            
+            cachedCalculations = { totalGeral, pagoPorA, pagoPorB, devidoPorA, devidoPorB, saldoPosAcertosA, saldoPosAcertosB, equalizacao, realizadoPorCC };
+        }
+
+        function rerender() {
+            if (!state.config || !document.getElementById('app')) return;
+            compute();
+            
+            const { a, b } = state.config;
+            document.getElementById('user-photo').src = currentUser.photoURL;
+            document.getElementById('user-name').textContent = currentUser.displayName;
+            document.getElementById('participant-a').value = a;
+            document.getElementById('participant-b').value = b;
+            document.getElementById('label-pa').textContent = `${a} (%):`;
+            document.getElementById('label-pb').textContent = `${b} (%):`;
+
+            populateSelects();
+            renderDashboard();
+            renderBalanca();
+            renderLancamentos();
+            renderAcertos();
+            renderResumoSocios();
+            document.getElementById('kpi-total').textContent = fmt(cachedCalculations.totalGeral);
+            document.getElementById('kpi-equalizacao').textContent = cachedCalculations.equalizacao.texto;
+        }
+        
+        function populateSelects() {
+            const { a, b } = state.config;
+            const pagadores = [a, b];
+            const createOptions = arr => arr.map(item => `<option value="${item}">${item}</option>`).join('');
+            
+            ['cat', 'cc', 'pagador', 'de', 'para', 'quick-pagador', 'filter-cc'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    const currentValue = el.value;
+                    if (id === 'cat') el.innerHTML = createOptions(PREDEFINED_LISTS.categorias);
+                    else if (id === 'cc' || id === 'filter-cc') {
+                        const options = id === 'filter-cc' ? ['Todos', ...PREDEFINED_LISTS.centrosDeCusto] : PREDEFINED_LISTS.centrosDeCusto;
+                        el.innerHTML = createOptions(options);
+                    }
+                    else if (['pagador', 'de', 'para', 'quick-pagador'].includes(id)) el.innerHTML = createOptions(pagadores);
+                    el.value = currentValue;
+                }
+            });
+        }
+
+        function renderDashboard() {
+            const budget = state.config.budget || { cc: {} };
+            const grid = document.getElementById('dashboard-grid');
+            grid.innerHTML = PREDEFINED_LISTS.centrosDeCusto.map(cc => {
+                const orcado = budget.cc[cc] || 0;
+                const realizado = cachedCalculations.realizadoPorCC[cc] || 0;
+                const saldo = orcado - realizado;
+                const percent = orcado > 0 ? (realizado / orcado) * 100 : 0;
+                let barColor = 'bg-green-500';
+                if (percent > 80 && percent <= 100) barColor = 'bg-yellow-500';
+                if (percent > 100) barColor = 'bg-red-500';
+                return `<div class="bg-white p-4 rounded-2xl shadow-md">
+                    <h4 class="font-bold">${cc}</h4>
+                    <div class="text-sm mt-2 space-y-1">
+                        <p class="flex justify-between"><span>Orçado:</span> <span>${fmt(orcado)}</span></p>
+                        <p class="flex justify-between"><span>Realizado:</span> <span class="font-semibold">${fmt(realizado)}</span></p>
+                        <p class="flex justify-between"><span>Saldo:</span> <span class="${saldo < 0 ? 'text-red-600' : ''}">${fmt(saldo)}</span></p>
+                    </div>
+                    <div class="w-full progress-bar-bg rounded-full h-2.5 mt-3"><div class="${barColor} h-2.5 rounded-full" style="width: ${Math.min(percent, 100)}%"></div></div>
+                </div>`;
+            }).join('');
+        }
+        
+        function renderBalanca() {
+             const { saldoPosAcertosA } = cachedCalculations;
+            const { a, b } = state.config;
+            const card = document.getElementById('balanca-acerto-card');
+            const content = document.getElementById('balanca-content');
+            if (Math.abs(saldoPosAcertosA) < 0.01) {
+                card.className = 'p-6 rounded-2xl shadow-lg text-center bg-green-100 border-green-300';
+                content.innerHTML = `<p class="text-2xl font-bold text-green-800">Tudo certo!</p><p>As contas estão zeradas.</p>`;
+            } else {
+                card.className = 'p-6 rounded-2xl shadow-lg text-center bg-blue-100 border-blue-300';
+                const devedor = saldoPosAcertosA < 0 ? a : b;
+                const credor = saldoPosAcertosA < 0 ? b : a;
+                const valor = Math.abs(saldoPosAcertosA);
+                content.innerHTML = `<p>Para zerar as contas:</p><p class="text-2xl font-bold my-2">${devedor} → ${credor}</p><p class="text-3xl font-bold">${fmt(valor)}</p>`;
+            }
+        }
+        
+        function renderLancamentos() {
+            const tbody = document.getElementById('lancamentos-table-body');
+            const filter = document.getElementById('filter-cc').value;
+            const filtered = state.lancamentos.filter(l => filter === 'Todos' || l.cc === filter);
+            tbody.innerHTML = filtered.map(l => `
+                <tr class="border-b">
+                    <td class="p-2">${l.dt}</td>
+                    <td class="p-2">${l.desc}</td>
+                    <td class="p-2">${fmt(l.valor)}</td>
+                    <td class="p-2">${l.pagador}</td>
+                    <td class="p-2">${l.anexo ? `<a href="${l.anexo.url}" target="_blank" class="text-blue-600 hover:underline">Ver</a>` : 'Não'}</td>
+                    <td class="p-2"><button data-id="${l.id}" class="delete-lancamento-btn text-red-500 font-bold hover:text-red-700">X</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function renderAcertos() {
+            const list = document.getElementById('acertos-list');
+            list.innerHTML = state.acertos.map(a => {
+                const date = a.dt?.toDate ? new Date(a.dt.toDate()).toLocaleDateString('pt-BR') : '...';
+                return `<li class="flex justify-between items-center p-2 bg-slate-100 rounded-md">
+                    <span>${date}: <strong>${a.de}</strong> → <strong>${a.para}</strong> - ${fmt(a.valor)} ${a.anexo ? `<a href="${a.anexo.url}" target="_blank" class="text-blue-600 hover:underline">(anexo)</a>` : ''}</span>
+                    <button data-id="${a.id}" class="delete-acerto-btn text-red-500 ml-4 font-bold hover:text-red-700">X</button>
+                </li>`
+            }).join('');
+        }
+
+        function renderResumoSocios() {
+            const { a, b } = state.config;
+            const { pagoPorA, devidoPorA, saldoPosAcertosA, pagoPorB, devidoPorB, saldoPosAcertosB } = cachedCalculations;
+            const container = document.getElementById('resumo-socios');
+            container.innerHTML = [
+                { nome: a, pago: pagoPorA, devido: devidoPorA, saldo: saldoPosAcertosA },
+                { nome: b, pago: pagoPorB, devido: devidoPorB, saldo: saldoPosAcertosB }
+            ].map(s => `
+                <div>
+                    <h3 class="font-semibold text-lg">${s.nome}</h3>
+                    <div class="text-sm space-y-1 mt-1">
+                        <p class="flex justify-between"><span>Pago:</span> <span>${fmt(s.pago)}</span></p>
+                        <p class="flex justify-between"><span>Devido:</span> <span>${fmt(s.devido)}</span></p>
+                        <hr class="my-1"><p class="flex justify-between font-bold"><span>Saldo:</span> <span class="${s.saldo < 0 ? 'text-red-600' : 'text-green-600'}">${fmt(s.saldo)}</span></p>
+                    </div>
+                </div>`).join('');
+        }
+        
+        async function handleFileUpload(file, path) {
+            if (!file) return null;
+            loadingOverlay.classList.remove('hidden');
+            try {
+                const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
+                const snapshot = await uploadBytes(storageRef, file);
+                const url = await getDownloadURL(snapshot.ref);
+                return { url, path: snapshot.ref.fullPath, name: file.name };
+            } catch (error) {
+                console.error("Upload Error:", error);
+                alert("Falha no upload do anexo."); return null;
+            } finally {
+                loadingOverlay.classList.add('hidden');
+            }
+        }
+        
+        function addEventListeners() {
+            appWrapper.addEventListener('click', async e => {
+                if (e.target.id === 'logout-btn') signOut(auth);
+                if (e.target.matches('.delete-lancamento-btn')) {
+                    const id = e.target.dataset.id;
+                    if (confirm('Tem a certeza que deseja excluir este lançamento?')) {
+                        const lancamento = state.lancamentos.find(l => l.id === id);
+                        if (lancamento.anexo) await deleteObject(ref(storage, lancamento.anexo.path));
+                        await deleteDoc(doc(db, "lancamentos", id));
+                    }
+                }
+                if (e.target.matches('.delete-acerto-btn')) {
+                     const id = e.target.dataset.id;
+                    if (confirm('Tem a certeza que deseja excluir este acerto?')) {
+                        const acerto = state.acertos.find(a => a.id === id);
+                        if (acerto.anexo) await deleteObject(ref(storage, acerto.anexo.path));
+                        await deleteDoc(doc(db, "acertos", id));
+                    }
+                }
+                if (e.target.id === 'quick-add-btn') document.getElementById('quick-add-modal').classList.remove('hidden');
+                if (e.target.id === 'quick-add-cancel' || e.target.closest('#quick-add-modal') && !e.target.closest('.bg-white')) document.getElementById('quick-add-modal').classList.add('hidden');
+                if (e.target.id === 'manage-budget-btn') {
+                    const fields = document.getElementById('budget-fields');
+                    const budget = state.config.budget || { cc: {} };
+                    fields.innerHTML = PREDEFINED_LISTS.centrosDeCusto.map(cc => `<div><label class="block text-sm font-medium text-slate-700">${cc}</label><input type="text" name="${cc}" value="${budget.cc[cc] || ''}" class="mt-1 w-full border p-2 rounded-md" placeholder="R$ 0,00"></div>`).join('');
+                    document.getElementById('budget-modal').classList.remove('hidden');
+                }
+                if (e.target.id === 'budget-cancel' || e.target.closest('#budget-modal') && !e.target.closest('.bg-white')) document.getElementById('budget-modal').classList.add('hidden');
+                if (e.target.id === 'budget-save') {
+                    const newBudget = { cc: {} };
+                    document.querySelectorAll('#budget-fields input').forEach(i => newBudget.cc[i.name] = parseNum(i.value));
+                    await setDoc(configDocRef, { budget: newBudget }, { merge: true });
+                    document.getElementById('budget-modal').classList.add('hidden');
+                }
+                if (e.target.id === 'history-btn') alert('Funcionalidade de histórico a ser implementada.');
+            });
+            
+            document.getElementById('participant-a').addEventListener('change', async e => await setDoc(configDocRef, { a: e.target.value }, { merge: true }));
+            document.getElementById('participant-b').addEventListener('change', async e => await setDoc(configDocRef, { b: e.target.value }, { merge: true }));
+
+            document.getElementById('lancamento-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const form = e.target;
+                const anexo = await handleFileUpload(form.anexo.files[0], 'lancamentos');
+                const lancamento = {
+                    dt: form.dt.value, desc: form.desc.value, cat: form.cat.value, cc: form.cc.value,
+                    valor: parseNum(form.valor.value), pagador: form.pagador.value,
+                    pA: parseFloat(form.pA.value), pB: parseFloat(form.pB.value), anexo,
+                    createdBy: currentUser.displayName, createdAt: serverTimestamp()
+                };
+                if(lancamento.valor <= 0) return alert('O valor deve ser positivo.');
+                await addDoc(lancamentosCol, lancamento);
+                form.reset();
+                document.getElementById('dt').valueAsDate = new Date();
+            });
+            
+            document.getElementById('acerto-form').addEventListener('submit', async e => {
+                e.preventDefault();
+                const form = e.target;
+                const valor = parseNum(form['valor-acerto'].value);
+                if (form.de.value === form.para.value) return alert('Pagador e recebedor devem ser diferentes.');
+                if (valor <= 0) return alert('O valor do acerto deve ser positivo.');
+                const anexo = await handleFileUpload(form['anexo-acerto'].files[0], 'acertos');
+                const acerto = { dt: serverTimestamp(), de: form.de.value, para: form.para.value, valor, anexo };
+                await addDoc(acertosCol, acerto);
+                form.reset();
+            });
+            
+            document.getElementById('quick-add-form').addEventListener('submit', async e => {
+                e.preventDefault();
+                const form = e.target;
+                const valor = parseNum(form['quick-valor'].value);
+                if (valor <= 0) return alert('O valor deve ser positivo.');
+                const lancamento = {
+                    dt: new Date().toISOString().split('T')[0], desc: form['quick-desc'].value, cat: 'Outros', cc: 'Outros',
+                    valor, pagador: form['quick-pagador'].value, pA: 0.5, pB: 0.5, anexo: null,
+                    createdBy: currentUser.displayName, createdAt: serverTimestamp()
+                };
+                await addDoc(lancamentosCol, lancamento);
+                form.reset();
+                document.getElementById('quick-add-modal').classList.add('hidden');
+            });
+
+            document.getElementById('filter-cc').addEventListener('change', rerender);
+        }
+    </script>
 </body>
 </html>
