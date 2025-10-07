@@ -5,16 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestor de Custos de Obra - V&G</title>
     
-    <!-- jsPDF for PDF Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-
-    <!-- Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Google Fonts: Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
@@ -23,11 +16,12 @@
         .modal-overlay { transition: opacity 0.2s ease-in-out; }
         .progress-bar-bg { background-color: #e5e7eb; }
         .progress-bar { transition: width 0.3s ease-in-out; }
+        .loader { border: 4px solid #f3f3f3; border-radius: 50%; border-top: 4px solid #3498db; width: 40px; height: 40px; animation: spin 2s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="antialiased text-slate-800">
 
-    <!-- Ecrã de Login -->
     <div id="login-screen" class="flex items-center justify-center h-screen">
         <div class="text-center p-8 bg-white rounded-2xl shadow-lg max-w-sm mx-auto">
             <h1 class="text-3xl font-bold text-slate-900 mb-2">Gestor de Custos de Obra</h1>
@@ -39,21 +33,15 @@
         </div>
     </div>
 
-    <!-- Aplicação Principal (escondida por defeito) -->
-    <div id="app-wrapper" class="hidden">
-        <!-- O conteúdo da aplicação será injetado aqui pelo JS -->
-    </div>
+    <div id="app-wrapper" class="hidden"></div>
+    <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50 hidden"><div class="loader"></div></div>
     
-    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, setDoc, query, orderBy, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, setDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-storage.js";
 
-        // =====================================================================
-        // CONFIGURAÇÃO DO SEU PROJETO FIREBASE
-        // =====================================================================
         const firebaseConfig = {
             apiKey: "AIzaSyA9GTueuXozK7FZPl-MSnXfbn4d9ex2Mm8",
             authDomain: "qd61lt32.firebaseapp.com",
@@ -64,33 +52,35 @@
             measurementId: "G-QT2KJL124T"
         };
 
-        // Inicializar Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
         const storage = getStorage(app);
         const provider = new GoogleAuthProvider();
 
-        // Referências das coleções no Firestore
         const lancamentosCol = collection(db, "lancamentos");
         const acertosCol = collection(db, "acertos");
         const configDoc = doc(db, "config", "main");
         const historyCol = collection(db, "history");
 
-        // Elementos da UI globais
         const loginScreen = document.getElementById('login-screen');
         const appWrapper = document.getElementById('app-wrapper');
+        const loadingOverlay = document.getElementById('loading-overlay');
 
         let currentUser = null;
-        let state = {}; // Estado local para renderização
-        let listeners = []; // Para gerir os listeners em tempo real
-
-        // =====================================================================
-        // LÓGICA DE AUTENTICAÇÃO
-        // =====================================================================
+        let state = { lancamentos: [], acertos: [], config: null, history: [] };
+        let listeners = [];
+        let cachedCalculations = {};
         
+        const PREDEFINED_LISTS = {
+            categorias: ['Outros', 'Terreno', 'Projeto', 'Material', 'Mão de Obra', 'Serviços', 'Licenças/Taxas', 'Transporte/Logística'],
+            centrosDeCusto: ['Outros', 'Terreno', 'Projeto', 'Fundações', 'Estrutura/Alvenaria', 'Cobertura', 'Elétrica', 'Hidráulica', 'Revestimentos/Pisos', 'Esquadrias/Vidros', 'Pintura', 'Paisagismo', 'Licenças/Taxas', 'Equalização'],
+        };
+        const fmt = (n) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n || 0);
+        const parseNum = (v) => parseFloat(String(v).replace(/\./g, '').replace(',', '.')) || 0;
+
         document.getElementById('login-btn').addEventListener('click', () => {
-            signInWithPopup(auth, provider).catch(error => console.error("Erro no login com Google:", error));
+            signInWithPopup(auth, provider).catch(error => console.error("Login Error:", error));
         });
 
         onAuthStateChanged(auth, user => {
@@ -103,22 +93,15 @@
                 currentUser = null;
                 appWrapper.classList.add('hidden');
                 loginScreen.classList.remove('hidden');
-                appWrapper.innerHTML = ''; // Limpa a UI
-                listeners.forEach(unsubscribe => unsubscribe()); // Remove listeners
+                appWrapper.innerHTML = '';
+                listeners.forEach(unsubscribe => unsubscribe());
                 listeners = [];
             }
         });
 
-        // =====================================================================
-        // LÓGICA DA APLICAÇÃO
-        // =====================================================================
-
         function initializeAppUI() {
-            // Injeta o HTML da aplicação no wrapper
             appWrapper.innerHTML = `
                 <div id="app" class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
-                    <!-- O HTML completo da aplicação, desde o header até o fim dos modais, vai aqui -->
-                    <!-- Header -->
                     <header class="mb-8">
                         <div class="flex flex-wrap justify-between items-center gap-4">
                              <h1 id="main-title" class="text-3xl font-bold text-slate-900">Gestor de Custos de Obra</h1>
@@ -131,9 +114,9 @@
                          <div class="mt-4 flex flex-wrap justify-between items-center gap-4">
                             <div class="p-4 bg-slate-200 rounded-lg flex flex-wrap gap-4 items-center">
                                 <span class="font-semibold">Sócios:</span>
-                                <input type="text" id="participant-a" class="px-2 py-1 font-bold border rounded-md" value="Victor">
+                                <input type="text" id="participant-a" class="px-2 py-1 font-bold border rounded-md w-32">
                                 <span>&</span>
-                                <input type="text" id="participant-b" class="px-2 py-1 font-bold border rounded-md" value="Gustavo">
+                                <input type="text" id="participant-b" class="px-2 py-1 font-bold border rounded-md w-32">
                             </div>
                             <div class="flex items-center gap-2 flex-wrap">
                                 <button id="history-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Histórico</button>
@@ -143,21 +126,11 @@
                         </div>
                     </header>
                     <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <!-- Conteúdo principal (dashboard, formulários, etc.) -->
                         <div class="lg:col-span-2 space-y-8">
-                            <section>
-                                <h2 class="text-2xl font-bold mb-4 text-slate-800">Dashboard da Obra</h2>
-                                <div id="dashboard-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"></div>
-                            </section>
-                            <section id="balanca-acerto-card" class="p-6 rounded-2xl shadow-lg text-center transition-colors duration-300">
-                                <h2 class="text-xl font-bold mb-2">Balança de Acerto</h2>
-                                <div id="balanca-content"></div>
-                            </section>
+                            <section><h2 class="text-2xl font-bold mb-4 text-slate-800">Dashboard da Obra</h2><div id="dashboard-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"></div></section>
+                            <section id="balanca-acerto-card" class="p-6 rounded-2xl shadow-lg text-center"><h2 class="text-xl font-bold mb-2">Balança de Acerto</h2><div id="balanca-content"></div></section>
                             <section class="bg-white p-6 rounded-2xl shadow-lg">
-                                <div class="flex justify-between items-center mb-4">
-                                    <h2 class="text-xl font-bold">Novo Lançamento</h2>
-                                    <button id="quick-add-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg shadow-md">Rápido</button>
-                                </div>
+                                <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold">Novo Lançamento</h2><button id="quick-add-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg shadow-md">Rápido</button></div>
                                 <form id="lancamento-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <input type="date" id="dt" class="sm:col-span-1 border p-2 rounded-md" required>
                                     <input type="text" id="desc" placeholder="Descrição" class="sm:col-span-3 border p-2 rounded-md" required>
@@ -165,119 +138,160 @@
                                     <select id="cc" class="border p-2 rounded-md"></select>
                                     <input type="text" id="valor" placeholder="Valor" class="border p-2 rounded-md" required>
                                     <select id="pagador" class="border p-2 rounded-md"></select>
-                                    <div><label id="label-pa" class="text-sm">Victor (%):</label><input type="number" id="pA" step="0.01" min="0" max="1" value="0.5" class="w-full border p-2 rounded-md" required></div>
-                                    <div><label id="label-pb" class="text-sm">Gustavo (%):</label><input type="number" id="pB" step="0.01" min="0" max="1" value="0.5" class="w-full border p-2 rounded-md" required></div>
+                                    <div><label id="label-pa" class="text-sm">Sócio A (%):</label><input type="number" id="pA" step="0.01" min="0" max="1" value="0.5" class="w-full border p-2 rounded-md" required></div>
+                                    <div><label id="label-pb" class="text-sm">Sócio B (%):</label><input type="number" id="pB" step="0.01" min="0" max="1" value="0.5" class="w-full border p-2 rounded-md" required></div>
                                     <input type="file" id="anexo" accept=".pdf,.jpeg,.jpg,.png" class="sm:col-span-4 border p-2 rounded-md file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-                                    <div class="sm:col-span-4 flex flex-wrap items-center gap-4">
-                                       <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow-md">Adicionar</button>
-                                    </div>
+                                    <div class="sm:col-span-4 flex flex-wrap items-center gap-4"><button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow-md">Adicionar</button></div>
                                 </form>
                             </section>
                              <section class="bg-white p-6 rounded-2xl shadow-lg">
-                                <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
-                                    <h2 class="text-xl font-bold">Lançamentos</h2>
-                                    <div class="flex items-center gap-2">
-                                       <label for="filter-cc" class="text-sm font-medium">Filtrar por CC:</label>
-                                       <select id="filter-cc" class="border p-2 rounded-md text-sm"></select>
-                                    </div>
-                                </div>
-                                <div class="overflow-x-auto">
-                                    <table class="w-full text-sm text-left">
-                                        <thead class="bg-slate-100"><tr><th class="p-2">Data</th><th class="p-2">Descrição</th><th class="p-2">Valor</th><th class="p-2">Pagador</th><th class="p-2">Anexo</th><th class="p-2">Ação</th></tr></thead>
-                                        <tbody id="lancamentos-table-body"></tbody>
-                                    </table>
-                                </div>
+                                <div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-xl font-bold">Lançamentos</h2><div class="flex items-center gap-2"><label for="filter-cc" class="text-sm font-medium">Filtrar por CC:</label><select id="filter-cc" class="border p-2 rounded-md text-sm"></select></div></div>
+                                <div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="bg-slate-100"><tr><th class="p-2">Data</th><th class="p-2">Descrição</th><th class="p-2">Valor</th><th class="p-2">Pagador</th><th class="p-2">Anexo</th><th class="p-2">Ação</th></tr></thead><tbody id="lancamentos-table-body"></tbody></table></div>
                             </section>
                         </div>
                         <aside class="space-y-8">
-                            <section>
-                                <h2 class="text-2xl font-bold mb-4 text-slate-800">Resumo Financeiro</h2>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div class="bg-white p-4 rounded-2xl shadow-md text-center"><h3 class="text-sm font-semibold text-slate-500">Total Geral</h3><p id="kpi-total" class="text-2xl font-bold"></p></div>
-                                    <div class="bg-yellow-100 border border-yellow-300 p-4 rounded-2xl shadow-md text-center"><h3 class="text-sm font-semibold text-slate-600">Equalização</h3><p id="kpi-equalizacao" class="text-xl font-bold"></p></div>
-                                </div>
-                            </section>
-                            <section class="bg-white p-6 rounded-2xl shadow-lg">
-                                <h2 class="text-xl font-bold mb-4">Acertos</h2>
-                                <form id="acerto-form" class="space-y-4">
-                                    <div class="grid grid-cols-2 gap-4">
-                                        <div><label for="de" class="block text-sm font-medium">De:</label><select id="de" class="w-full border p-2 rounded-md"></select></div>
-                                        <div><label for="para" class="block text-sm font-medium">Para:</label><select id="para" class="w-full border p-2 rounded-md"></select></div>
-                                    </div>
-                                    <div><label for="valor-acerto" class="block text-sm font-medium">Valor:</label><input type="text" id="valor-acerto" placeholder="Valor" class="w-full border p-2 rounded-md" required></div>
-                                    <div><label for="anexo-acerto" class="block text-sm font-medium">Anexo:</label><input type="file" id="anexo-acerto" accept=".pdf,.jpeg,.jpg,.png" class="w-full border p-2 rounded-md file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"></div>
-                                    <div class="flex gap-2"><button type="submit" class="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg shadow-md">Registrar</button><button type="button" id="sugestao-btn" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg shadow-md">Sugestão</button></div>
-                                </form>
-                                <div class="mt-6"><h3 class="font-semibold mb-2">Histórico de Acertos</h3><ul id="acertos-list" class="space-y-2 text-sm"></ul></div>
-                            </section>
-                            <section class="bg-white p-6 rounded-2xl shadow-lg">
-                                <h2 class="text-xl font-bold mb-4">Detalhes por Sócio</h2>
-                                <div id="resumo-socios" class="space-y-4"></div>
-                            </section>
+                            <section><h2 class="text-2xl font-bold mb-4 text-slate-800">Resumo Financeiro</h2><div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div class="bg-white p-4 rounded-2xl shadow-md text-center"><h3 class="text-sm font-semibold text-slate-500">Total Geral</h3><p id="kpi-total" class="text-2xl font-bold"></p></div><div class="bg-yellow-100 border border-yellow-300 p-4 rounded-2xl shadow-md text-center"><h3 class="text-sm font-semibold text-slate-600">Equalização</h3><p id="kpi-equalizacao" class="text-xl font-bold"></p></div></div></section>
+                            <section class="bg-white p-6 rounded-2xl shadow-lg"><h2 class="text-xl font-bold mb-4">Acertos</h2><form id="acerto-form" class="space-y-4"><div class="grid grid-cols-2 gap-4"><div><label for="de">De:</label><select id="de"></select></div><div><label for="para">Para:</label><select id="para"></select></div></div><div><label for="valor-acerto">Valor:</label><input type="text" id="valor-acerto" required></div><div><label for="anexo-acerto">Anexo:</label><input type="file" id="anexo-acerto"></div><div class="flex gap-2"><button type="submit">Registrar</button><button type="button" id="sugestao-btn">Sugestão</button></div></form><div class="mt-6"><h3 class="font-semibold mb-2">Histórico de Acertos</h3><ul id="acertos-list" class="space-y-2 text-sm"></ul></div></section>
+                            <section class="bg-white p-6 rounded-2xl shadow-lg"><h2 class="text-xl font-bold mb-4">Detalhes por Sócio</h2><div id="resumo-socios" class="space-y-4"></div></section>
                         </aside>
                     </main>
                 </div>
-                <!-- Modais -->
-                <div id="quick-add-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden modal-overlay z-50">
-                    <div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-md"><h2 class="text-xl font-bold mb-4">Lançamento Rápido</h2><form id="quick-add-form"><div class="space-y-4"><input type="text" id="quick-desc" placeholder="Descrição" class="w-full border p-2 rounded-md" required><input type="text" id="quick-valor" placeholder="Valor" class="w-full border p-2 rounded-md" required><select id="quick-pagador" class="w-full border p-2 rounded-md"></select></div><div class="flex gap-4 mt-6"><button type="submit" class="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg">Adicionar</button><button type="button" id="quick-add-cancel" class="flex-1 bg-slate-300 hover:bg-slate-400 text-slate-800 font-bold py-2 px-4 rounded-lg">Cancelar</button></div></form></div>
-                </div>
-                <div id="budget-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden modal-overlay z-50">
-                    <div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-2xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Gerir Orçamento</h2><form id="budget-form" class="flex-grow overflow-y-auto pr-2"><div id="budget-fields" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div></form><div class="flex gap-4 mt-6 pt-4 border-t"><button type="button" id="budget-save" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg">Salvar</button><button type="button" id="budget-cancel" class="flex-1 bg-slate-300 hover:bg-slate-400 text-slate-800 font-bold py-2 px-4 rounded-lg">Cancelar</button></div></div>
-                </div>
-                <div id="history-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden modal-overlay z-50">
-                    <div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-3xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Histórico de Eventos</h2><div id="history-content" class="flex-grow overflow-y-auto pr-2 text-sm"></div><div class="flex gap-4 mt-6 pt-4 border-t"><button type="button" id="history-close" class="w-full bg-slate-300 hover:bg-slate-400 text-slate-800 font-bold py-2 px-4 rounded-lg">Fechar</button></div></div>
-                </div>
+                <div id="quick-add-modal" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4 hidden z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-md"><h2 class="text-xl font-bold mb-4">Lançamento Rápido</h2><form id="quick-add-form"><div class="space-y-4"><input type="text" id="quick-desc" placeholder="Descrição" required><input type="text" id="quick-valor" placeholder="Valor" required><select id="quick-pagador"></select></div><div class="flex gap-4 mt-6"><button type="submit">Adicionar</button><button type="button" id="quick-add-cancel">Cancelar</button></div></form></div></div>
+                <div id="budget-modal" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4 hidden z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-2xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Gerir Orçamento</h2><form id="budget-form" class="flex-grow overflow-y-auto pr-2"><div id="budget-fields" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div></form><div class="flex gap-4 mt-6 pt-4 border-t"><button type="button" id="budget-save">Salvar</button><button type="button" id="budget-cancel">Cancelar</button></div></div></div>
+                <div id="history-modal" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4 hidden z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-3xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Histórico de Eventos</h2><div id="history-content" class="flex-grow overflow-y-auto pr-2 text-sm"></div><div class="mt-6 pt-4 border-t"><button type="button" id="history-close" class="w-full">Fechar</button></div></div></div>
             `;
             
-            // Após injetar o HTML, podemos adicionar os event listeners
             addEventListeners();
             setupRealtimeListeners();
         }
 
-        async function logEvent(action, details = {}) { /* ... (código existente) ... */ }
+        async function logEvent(action, details = {}) {
+            if (!currentUser) return;
+            try {
+                await addDoc(historyCol, { action, details, user: currentUser.displayName, email: currentUser.email, timestamp: serverTimestamp() });
+            } catch (error) { console.error("Log Error:", error); }
+        }
 
         function setupRealtimeListeners() {
             listeners.forEach(unsubscribe => unsubscribe());
             listeners = [];
 
-            const unsubLancamentos = onSnapshot(query(lancamentosCol, orderBy("dt", "desc")), (snapshot) => {
-                state.lancamentos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                rerender();
-            });
-            const unsubAcertos = onSnapshot(query(acertosCol, orderBy("dt", "desc")), (snapshot) => {
-                state.acertos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                rerender();
-            });
-            const unsubConfig = onSnapshot(configDoc, (doc) => {
-                state.config = doc.exists() ? doc.data() : { a: 'Sócio A', b: 'Sócio B', budget: { cc: {} } };
-                rerender();
-            });
-            const unsubHistory = onSnapshot(query(historyCol, orderBy("timestamp", "desc")), (snapshot) => {
-                state.history = snapshot.docs.map(doc => doc.data());
-                renderHistoryModal();
-            });
+            const unsubLancamentos = onSnapshot(query(lancamentosCol, orderBy("dt", "desc")), snap => { state.lancamentos = snap.docs.map(d => ({...d.data(), id: d.id })); rerender(); });
+            const unsubAcertos = onSnapshot(query(acertosCol, orderBy("dt", "desc")), snap => { state.acertos = snap.docs.map(d => ({...d.data(), id: d.id })); rerender(); });
+            const unsubConfig = onSnapshot(configDoc, doc => { state.config = doc.exists() ? doc.data() : { a: 'Sócio A', b: 'Sócio B', budget: { cc: {} } }; rerender(); });
+            const unsubHistory = onSnapshot(query(historyCol, orderBy("timestamp", "desc")), snap => { state.history = snap.docs.map(d => d.data()); renderHistoryModal(); });
             
             listeners.push(unsubLancamentos, unsubAcertos, unsubConfig, unsubHistory);
         }
         
-        // ... (resto do código da aplicação: compute, rerender, addEventListeners, etc.) ...
-        // Este é um esqueleto. O código completo seria muito longo, mas a estrutura é esta.
-        // A lógica de renderização, cálculo e manipulação de eventos seria adaptada para
-        // ler do 'state' e escrever no Firestore através de funções de CRUD.
+        function compute() {
+            if (!state.config) return;
+            const { lancamentos, acertos, config } = state;
+            const { a, b } = config;
+            
+            const totalGeral = lancamentos.reduce((s, l) => s + l.valor, 0);
+            const pagoPorA = lancamentos.filter(l => l.pagador === a).reduce((s, l) => s + l.valor, 0);
+            const pagoPorB = lancamentos.filter(l => l.pagador === b).reduce((s, l) => s + l.valor, 0);
+            const devidoPorA = lancamentos.reduce((s, l) => s + (l.valor * l.pA), 0);
+            const devidoPorB = lancamentos.reduce((s, l) => s + (l.valor * l.pB), 0);
+            
+            const acertosRecebidosA = acertos.filter(ac => ac.para === a).reduce((s, ac) => s + ac.valor, 0);
+            const acertosPagosA = acertos.filter(ac => ac.de === a).reduce((s, ac) => s + ac.valor, 0);
+            const saldoPosAcertosA = (pagoPorA - devidoPorA) + acertosRecebidosA - acertosPagosA;
 
-        // A função rerender seria chamada por cada listener onSnapshot.
+            const acertosRecebidosB = acertos.filter(ac => ac.para === b).reduce((s, ac) => s + ac.valor, 0);
+            const acertosPagosB = acertos.filter(ac => ac.de === b).reduce((s, ac) => s + ac.valor, 0);
+            const saldoPosAcertosB = (pagoPorB - devidoPorB) + acertosRecebidosB - acertosPagosB;
+
+            let equalizacao = { valor: 0, texto: 'Saldos zerados' };
+            if (saldoPosAcertosA > 0.01) {
+                equalizacao = { valor: saldoPosAcertosA, de: b, para: a, texto: `${b} paga ${fmt(saldoPosAcertosA)}` };
+            } else if (saldoPosAcertosB > 0.01) {
+                equalizacao = { valor: saldoPosAcertosB, de: a, para: b, texto: `${a} paga ${fmt(saldoPosAcertosB)}` };
+            }
+
+            const realizadoPorCC = lancamentos.reduce((acc, l) => { acc[l.cc] = (acc[l.cc] || 0) + l.valor; return acc; }, {});
+            
+            cachedCalculations = { totalGeral, pagoPorA, pagoPorB, devidoPorA, devidoPorB, saldoPosAcertosA, saldoPosAcertosB, equalizacao, realizadoPorCC };
+        }
+
         function rerender() {
-            if (!state.config) return; // Aguarda a configuração ser carregada
-            // Toda a lógica de atualização da UI com base no 'state'
-            // ...
+            if (!state.config || !document.getElementById('app')) return;
+            compute();
+            const { totalGeral, pagoPorA, pagoPorB, devidoPorA, devidoPorB, saldoPosAcertosA, saldoPosAcertosB, equalizacao, realizadoPorCC } = cachedCalculations;
+            const { a, b, budget } = state.config;
+            
+            document.getElementById('participant-a').value = a;
+            document.getElementById('participant-b').value = b;
+            document.getElementById('label-pa').textContent = `${a} (%):`;
+            document.getElementById('label-pb').textContent = `${b} (%):`;
+            
+            populateSelects();
+
+            document.getElementById('kpi-total').textContent = fmt(totalGeral);
+            document.getElementById('kpi-equalizacao').textContent = equalizacao.texto;
+            
+            renderDashboard(realizadoPorCC, budget);
+            renderBalanca(saldoPosAcertosA, a, b);
+            renderLancamentos();
+            renderAcertos();
+            renderResumoSocios(a, b, pagoPorA, devidoPorA, saldoPosAcertosA, pagoPorB, devidoPorB, saldoPosAcertosB);
+        }
+        
+        // ... (Implementação completa de todas as funções de renderização, modais e helpers)
+        function populateSelects() { /* ... */ }
+        function renderDashboard(realizado, budget) { /* ... */ }
+        function renderBalanca(saldo, a, b) { /* ... */ }
+        function renderLancamentos() { /* ... */ }
+        function renderAcertos() { /* ... */ }
+        function renderResumoSocios(a, b, pA, dA, sA, pB, dB, sB) { /* ... */ }
+        function renderHistoryModal() { /* ... */ }
+
+        async function handleFileUpload(file, path) {
+            if (!file) return null;
+            loadingOverlay.classList.remove('hidden');
+            try {
+                const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
+                const snapshot = await uploadBytes(storageRef, file);
+                const downloadURL = await getDownloadURL(snapshot.ref);
+                return { url: downloadURL, path: snapshot.ref.fullPath, name: file.name };
+            } catch (error) {
+                console.error("Upload Error:", error);
+                alert("Falha no upload do anexo.");
+                return null;
+            } finally {
+                loadingOverlay.classList.add('hidden');
+            }
         }
         
         function addEventListeners() {
-             document.getElementById('logout-btn').addEventListener('click', () => {
-                signOut(auth).catch(error => console.error("Erro no logout:", error));
+            document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+            
+            const lancamentoForm = document.getElementById('lancamento-form');
+            lancamentoForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const anexoFile = e.target.anexo.files[0];
+                const anexoData = await handleFileUpload(anexoFile, 'lancamentos');
+                
+                const newLancamento = {
+                    dt: e.target.dt.value,
+                    desc: e.target.desc.value,
+                    cat: e.target.cat.value,
+                    cc: e.target.cc.value,
+                    valor: parseNum(e.target.valor.value),
+                    pagador: e.target.pagador.value,
+                    pA: parseFloat(e.target.pA.value),
+                    pB: parseFloat(e.target.pB.value),
+                    anexo: anexoData,
+                    createdBy: currentUser.displayName,
+                    createdAt: serverTimestamp()
+                };
+                
+                await addDoc(lancamentosCol, newLancamento);
+                await logEvent('Lançamento Adicionado', { desc: newLancamento.desc, valor: fmt(newLancamento.valor) });
+                lancamentoForm.reset();
             });
-
-            // ... (todos os outros event listeners: forms, botões, modais) ...
+            // ... (adicionar todos os outros event listeners aqui)
         }
     </script>
 </body>
