@@ -304,52 +304,33 @@
     const STATUS = ["Aguardando aprovação","Aprovado","Pago","Conciliado","Reembolsado"];
     const fill = (el, arr) => el.innerHTML = arr.map(v => `<option value="${v}">${v}</option>`).join("");
 
-    // ---- Auth (popup com fallback para redirect) ----
-    async function doLogin() {
-      try {
-        await signInWithPopup(auth, provider);
-      } catch (e) {
-        // fallback em ambientes que bloqueiam popup
-        if (String(e?.code || "").includes("popup")) {
-          $("#loginMsg").textContent = "Popup bloqueado. Redirecionando para login…";
-          await signInWithRedirect(auth, provider);
-        } else {
-          $("#loginMsg").textContent = e?.message || String(e);
-        }
-      }
+    // ---- AUTH (forçar POPUP em GitHub Pages) ----
+async function doLogin() {
+  try {
+    // popup resolve em GitHub Pages sem exigir /__/auth/handler
+    await signInWithPopup(auth, provider);
+  } catch (e) {
+    const code = e?.code || "";
+    // Mensagem clara pro caso de domínio não autorizado
+    if (code === "auth/unauthorized-domain") {
+      document.querySelector("#loginMsg").innerHTML =
+        'Domínio não autorizado no Firebase Auth. Em <b>Authentication → Settings → Authorized domains</b> adicione <b>viictorcastro-beep.github.io</b>.';
+      return;
     }
-    $("#btnLogin").addEventListener("click", doLogin);
-    $("#btnLogout").addEventListener("click", () => signOut(auth));
+    if (code.includes("popup-blocked") || code.includes("popup-closed")) {
+      document.querySelector("#loginMsg").textContent =
+        "Seu navegador bloqueou o popup. Libere popups para este site e tente de novo.";
+      return;
+    }
+    document.querySelector("#loginMsg").textContent = e.message || String(e);
+  }
+}
 
-    // Trata retorno do redirect
-    getRedirectResult(auth).catch(e => {
-      // Mostra dicas úteis de domínio não autorizado
-      if (e?.code === "auth/unauthorized-domain") {
-        $("#loginMsg").innerHTML = "Domínio não autorizado no Firebase Auth. Adicione <b>viictorcastro-beep.github.io</b> em Authentication → Settings → Authorized domains.";
-      } else {
-        $("#loginMsg").textContent = e?.message || String(e);
-      }
-    });
+document.querySelector("#btnLogin").addEventListener("click", doLogin);
+document.querySelector("#btnLogout").addEventListener("click", () => signOut(auth));
 
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        state.user = user;
-        $("#login").classList.add("hidden");
-        $("#app").classList.remove("hidden");
-        $("#userPhoto").src = user.photoURL || "";
-        $("#userName").textContent = user.displayName || user.email || "";
 
-        fill($("#iCat"), CATS); fill($("#iCC"), CC);
-        fill($("#iTipoDoc"), TIPODOC); fill($("#iForma"), FORMA); fill($("#iStatus"), STATUS);
 
-        startRealtime();
-        if ($("#iData") && !$("#iData").value) $("#iData").value = new Date().toISOString().slice(0, 10);
-      } else {
-        state.user = null;
-        $("#app").classList.add("hidden");
-        $("#login").classList.remove("hidden");
-      }
-    });
 
     // ---- Realtime ----
     let unsubLanc = null, unsubAc = null, unsubCfg = null;
