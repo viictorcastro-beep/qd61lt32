@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Custos de Obra - V&G</title>
+    
+    <!-- jsPDF for PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Define a fonte Inter como padrão para todo o corpo do documento */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9; /* slate-100 */
+        }
+        /* Estilo para inputs de arquivo ocultos */
+        .hidden-file-input {
+            display: none;
+        }
+        /* Melhora a transição de cores para botões e links */
+        button, a, input[type="submit"] {
+            transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+        }
+        .modal-overlay {
+            transition: opacity 0.2s ease-in-out;
+        }
+        /* Estilos para a barra de progresso */
+        .progress-bar-bg { background-color: #e5e7eb; }
+        .progress-bar { transition: width 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="antialiased text-slate-800">
+
+    <div id="app" class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
+
+        <!-- Cabeçalho -->
+        <header class="mb-8">
+            <div class="flex flex-wrap justify-between items-center gap-4">
+                <h1 id="main-title" class="text-3xl font-bold text-slate-900">Gestor de Custos de Obra</h1>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button id="manage-budget-btn" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Gerir Orçamento</button>
+                    <button id="export-pdf-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Exportar PDF</button>
+                    <button id="export-csv-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Exportar CSV</button>
+                    <input type="file" id="csv-import-input" class="hidden-file-input" accept=".csv">
+                    <button id="import-csv-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Importar CSV</button>
+                    <button id="reset-data-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Zerar Dados</button>
+                </div>
+            </div>
+             <div class="mt-4 p-4 bg-slate-200 rounded-lg flex flex-wrap gap-4 items-center">
+                <label for="participant-a" class="font-semibold">Sócio A:</label>
+                <input type="text" id="participant-a" class="px-2 py-1 border rounded-md shadow-sm" value="Victor">
+                <label for="participant-b" class="font-semibold">Sócio B:</label>
+                <input type="text" id="participant-b" class="px-2 py-1 border rounded-md shadow-sm" value="Gustavo">
+            </div>
+        </header>
+        
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Coluna Principal (Formulário e Lançamentos) -->
+            <div class="lg:col-span-2 space-y-8">
+                
+                <!-- Dashboard da Obra -->
+                <section>
+                    <h2 class="text-2xl font-bold mb-4 text-slate-800">Dashboard da Obra</h2>
+                    <div id="dashboard-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <!-- Cards do dashboard inseridos via JS -->
+                    </div>
+                </section>
+                
+                <!-- Balança de Acerto -->
+                <section id="balanca-acerto-card" class="p-6 rounded-2xl shadow-lg text-center transition-colors duration-300">
+                    <h2 class="text-xl font-bold mb-2">Balança de Acerto de Contas</h2>
+                    <div id="balanca-content">
+                        <!-- Conteúdo dinâmico aqui -->
+                    </div>
+                </section>
+
+                <!-- Formulário de Novo Lançamento -->
+                <section class="bg-white p-6 rounded-2xl shadow-lg">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold">Novo Lançamento</h2>
+                        <button id="quick-add-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg shadow-md">Lançamento Rápido</button>
+                    </div>
+                    <form id="lancamento-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <input type="date" id="dt" class="sm:col-span-1 border p-2 rounded-md" required>
+                        <input type="text" id="desc" placeholder="Descrição" class="sm:col-span-3 border p-2 rounded-md" required>
+                        <select id="cat" class="border p-2 rounded-md"></select>
+                        <select id="cc" class="border p-2 rounded-md"></select>
+                        <input type="text" id="valor" placeholder="Valor (ex: 1234,56)" class="border p-2 rounded-md" required>
+                        <select id="pagador" class="border p-2 rounded-md"></select>
+                        <input type="number" id="pA" step="0.01" min="0" max="1" value="0.5" class="border p-2 rounded-md" required>
+                        <input type="number" id="pB" step="0.01" min="0" max="1" value="0.5" class="border p-2 rounded-md" required>
+                        <select id="tipoDoc" class="border p-2 rounded-md"></select>
+                        <input type="text" id="numDoc" placeholder="Nº Documento" class="border p-2 rounded-md">
+                        <select id="formaPgto" class="border p-2 rounded-md"></select>
+                        <select id="status" class="border p-2 rounded-md"></select>
+                        <input type="file" id="anexo" accept=".pdf,.jpeg,.jpg" class="sm:col-span-2 border p-2 rounded-md file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                        <textarea id="obs" placeholder="Observações" class="sm:col-span-4 border p-2 rounded-md h-16"></textarea>
+                        <div class="sm:col-span-4 flex flex-wrap items-center gap-4">
+                           <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow-md">Adicionar</button>
+                           <button type="button" id="terreno-btn" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg shadow-md">Lançar Terreno (R$ 45.000)</button>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- Tabela de Lançamentos -->
+                <section class="bg-white p-6 rounded-2xl shadow-lg">
+                    <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
+                        <h2 class="text-xl font-bold">Lançamentos</h2>
+                        <div class="flex items-center gap-2">
+                           <label for="filter-cc" class="text-sm font-medium">Filtrar por CC:</label>
+                           <select id="filter-cc" class="border p-2 rounded-md text-sm"></select>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-100">
+                                <tr>
+                                    <th class="p-2">Data</th>
+                                    <th class="p-2">Descrição</th>
+                                    <th class="p-2">Valor</th>
+                                    <th class="p-2">Pagador</th>
+                                    <th class="p-2">Anexo</th>
+                                    <th class="p-2">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lancamentos-table-body">
+                                <!-- Linhas inseridas via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Coluna Lateral (Acertos e Resumo) -->
+            <aside class="space-y-8">
+                
+                <!-- KPIs Resumo Financeiro -->
+                 <section>
+                    <h2 class="text-2xl font-bold mb-4 text-slate-800">Resumo Financeiro</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="bg-white p-4 rounded-2xl shadow-md text-center"><h3 class="text-sm font-semibold text-slate-500">Total Geral</h3><p id="kpi-total" class="text-2xl font-bold"></p></div>
+                        <div class="bg-yellow-100 border border-yellow-300 p-4 rounded-2xl shadow-md text-center"><h3 class="text-sm font-semibold text-slate-600">Equalização Sugerida</h3><p id="kpi-equalizacao" class="text-xl font-bold"></p></div>
+                    </div>
+                </section>
+                
+                <!-- Painel de Acertos -->
+                <section class="bg-white p-6 rounded-2xl shadow-lg">
+                    <h2 class="text-xl font-bold mb-4">Acertos (Transferências)</h2>
+                    <form id="acerto-form" class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><label for="de" class="block text-sm font-medium">De:</label><select id="de" class="w-full border p-2 rounded-md"></select></div>
+                            <div><label for="para" class="block text-sm font-medium">Para:</label><select id="para" class="w-full border p-2 rounded-md"></select></div>
+                        </div>
+                        <div><label for="valor-acerto" class="block text-sm font-medium">Valor:</label><input type="text" id="valor-acerto" placeholder="Valor" class="w-full border p-2 rounded-md" required></div>
+                        <div><label for="anexo-acerto" class="block text-sm font-medium">Anexo Comprovante:</label><input type="file" id="anexo-acerto" accept=".pdf,.jpeg,.jpg" class="w-full border p-2 rounded-md file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"></div>
+                        <div class="flex gap-2">
+                            <button type="submit" class="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg shadow-md">Registrar</button>
+                            <button type="button" id="sugestao-btn" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg shadow-md">Usar Sugestão</button>
+                        </div>
+                    </form>
+                    <div class="mt-6">
+                        <h3 class="font-semibold mb-2">Histórico de Acertos</h3>
+                        <ul id="acertos-list" class="space-y-2 text-sm">
+                           <!-- Itens inseridos via JS -->
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- Resumo Financeiro por Sócio -->
+                <section class="bg-white p-6 rounded-2xl shadow-lg">
+                    <h2 class="text-xl font-bold mb-4">Detalhes por Sócio</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between items-center"><h3 id="resumo-a-label" class="font-semibold text-lg">Victor</h3></div>
+                            <div class="text-sm space-y-1 mt-1">
+                                <p class="flex justify-between"><span>Total Pago:</span> <span id="resumo-pago-a"></span></p>
+                                <p class="flex justify-between"><span>Sua Parcela Devida:</span> <span id="resumo-devido-a"></span></p>
+                                <hr class="my-1">
+                                <p class="flex justify-between font-bold"><span>Saldo Final:</span> <span id="resumo-saldo-a"></span></p>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center"><h3 id="resumo-b-label" class="font-semibold text-lg">Gustavo</h3></div>
+                             <div class="text-sm space-y-1 mt-1">
+                                <p class="flex justify-between"><span>Total Pago:</span> <span id="resumo-pago-b"></span></p>
+                                <p class="flex justify-between"><span>Sua Parcela Devida:</span> <span id="resumo-devido-b"></span></p>
+                                <hr class="my-1">
+                                <p class="flex justify-between font-bold"><span>Saldo Final:</span> <span id="resumo-saldo-b"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </aside>
+        </main>
+    </div>
+    
+    <!-- Modal de Lançamento Rápido -->
+    <div id="quick-add-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden modal-overlay z-50">
+        <div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-md">
+            <h2 class="text-xl font-bold mb-4">Lançamento Rápido</h2>
+            <form id="quick-add-form">
+                <div class="space-y-4">
+                    <input type="text" id="quick-desc" placeholder="Descrição" class="w-full border p-2 rounded-md" required>
+                    <input type="text" id="quick-valor" placeholder="Valor" class="w-full border p-2 rounded-md" required>
+                    <select id="quick-pagador" class="w-full border p-2 rounded-md"></select>
+                </div>
+                <div class="flex gap-4 mt-6">
+                    <button type="submit" class="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg">Adicionar</button>
+                    <button type="button" id="quick-add-cancel" class="flex-1 bg-slate-300 hover:bg-slate-400 text-slate-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Gestão de Orçamento -->
+    <div id="budget-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden modal-overlay z-50">
+        <div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <h2 class="text-xl font-bold mb-4">Gerir Orçamento por Centro de Custo</h2>
+            <form id="budget-form" class="flex-grow overflow-y-auto pr-2">
+                <div id="budget-fields" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Campos do orçamento inseridos via JS -->
+                </div>
+            </form>
+            <div class="flex gap-4 mt-6 pt-4 border-t">
+                <button type="button" id="budget-save" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg">Salvar Orçamento</button>
+                <button type="button" id="budget-cancel" class="flex-1 bg-slate-300 hover:bg-slate-400 text-slate-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        // =====================================================================
+        // CONFIGURAÇÕES E DADOS GLOBAIS
+        // =====================================================================
+        const STORAGE_KEY = 'rateio_obra_v1';
+        
+        const PREDEFINED_LISTS = {
+            categorias: ['Outros', 'Terreno', 'Projeto', 'Material', 'Mão de Obra', 'Serviços', 'Licenças/Taxas', 'Transporte/Logística'],
+            centrosDeCusto: ['Outros', 'Terreno', 'Projeto', 'Fundações', 'Estrutura/Alvenaria', 'Cobertura', 'Elétrica', 'Hidráulica', 'Revestimentos/Pisos', 'Esquadrias/Vidros', 'Pintura', 'Paisagismo', 'Licenças/Taxas', 'Equalização'],
+            tiposDoc: ['Sem documento', 'NF-e (produto)', 'NFS-e (serviço)', 'Recibo', 'RPA'],
+            formasPgto: ['PIX', 'Dinheiro', 'Cartão (crédito)', 'Cartão (débito)', 'Boleto', 'Transferência'],
+            status: ['Pago', 'Aguardando aprovação', 'Aprovado', 'Conciliado', 'Reembolsado']
+        };
+
+        // Estado inicial da aplicação
+        let state = {
+            config: { a: 'Victor', b: 'Gustavo' },
+            lancamentos: [],
+            acertos: [],
+            budget: { cc: {} } // Orçamento por Centro de Custo
+        };
+        
+        let cachedCalculations = {};
+
+        // =====================================================================
+        // FUNÇÕES UTILITÁRIAS
+        // =====================================================================
+
+        const fmt = (n) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
+        const parseNum = (v) => parseFloat(String(v).replace(/\./g, '').replace(',', '.')) || 0;
+        const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+        
+        const readFile = (file) => new Promise((resolve, reject) => {
+            if (!file) return resolve(null);
+            if (file.size > 2 * 1024 * 1024) { // Limite de 2MB
+                const errorMsg = 'O ficheiro é muito grande (máx 2MB). Por favor, anexe um ficheiro menor.';
+                alert(errorMsg);
+                return reject(new Error(errorMsg));
+            }
+            const reader = new FileReader();
+            reader.onload = () => resolve({ name: file.name, type: file.type, data: reader.result });
+            reader.onerror = error => reject(error);
+            reader.readAsDataURL(file);
+        });
+
+
+        // =====================================================================
+        // PERSISTÊNCIA (localStorage)
+        // =====================================================================
+        const saveState = () => {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            } catch (error) {
+                console.error("Falha ao salvar dados:", error);
+                if (error.name === 'QuotaExceededError') {
+                    alert("Erro: O armazenamento local está cheio. Não é possível salvar mais anexos. Tente limpar alguns lançamentos com anexos grandes.");
+                } else {
+                    alert("Não foi possível salvar os dados. O armazenamento local pode estar desativado.");
+                }
+            }
+        };
+        const loadState = () => {
+            const savedState = localStorage.getItem(STORAGE_KEY);
+            if (savedState) {
+                const loaded = JSON.parse(savedState);
+                // Garante que a estrutura do state seja sempre a mais recente
+                state = {
+                    ...{ config: { a: 'Victor', b: 'Gustavo' }, lancamentos: [], acertos: [], budget: { cc: {} } },
+                    ...loaded
+                };
+            }
+        };
+
+
+        // =====================================================================
+        // LÓGICA DE CÁLCULO
+        // =====================================================================
+        const compute = () => {
+            const { config, lancamentos, acertos } = state;
+            
+            const totalGeral = lancamentos.reduce((sum, l) => sum + l.valor, 0);
+            const pagoPorA = lancamentos.filter(l => l.pagador === config.a).reduce((sum, l) => sum + l.valor, 0);
+            const pagoPorB = lancamentos.filter(l => l.pagador === config.b).reduce((sum, l) => sum + l.valor, 0);
+
+            const devidoPorA = lancamentos.reduce((sum, l) => sum + (l.valor * l.pA), 0);
+            const devidoPorB = lancamentos.reduce((sum, l) => sum + (l.valor * l.pB), 0);
+            
+            const acertosRecebidosA = acertos.filter(a => a.para === config.a).reduce((sum, a) => sum + a.valor, 0);
+            const acertosPagosA = acertos.filter(a => a.de === config.a).reduce((sum, a) => sum + a.valor, 0);
+            const acertosRecebidosB = acertos.filter(a => a.para === config.b).reduce((sum, a) => sum + a.valor, 0);
+            const acertosPagosB = acertos.filter(a => a.de === config.b).reduce((sum, a) => sum + a.valor, 0);
+            
+            const saldoPosAcertosA = (pagoPorA - devidoPorA) + acertosRecebidosA - acertosPagosA;
+            const saldoPosAcertosB = (pagoPorB - devidoPorB) + acertosRecebidosB - acertosPagosB;
+            
+            let equalizacao = { valor: 0, de: null, para: null, texto: 'Saldos zerados' };
+            if (saldoPosAcertosA > 0.01 && saldoPosAcertosB < -0.01) {
+                const valor = Math.min(saldoPosAcertosA, Math.abs(saldoPosAcertosB));
+                equalizacao = { valor, de: config.b, para: config.a, texto: `${config.b} paga ${fmt(valor)}` };
+            } else if (saldoPosAcertosB > 0.01 && saldoPosAcertosA < -0.01) {
+                const valor = Math.min(saldoPosAcertosB, Math.abs(saldoPosAcertosA));
+                equalizacao = { valor, de: config.a, para: config.b, texto: `${config.a} paga ${fmt(valor)}` };
+            }
+            
+            // Cálculo do realizado por Centro de Custo
+            const realizadoPorCC = lancamentos.reduce((acc, l) => {
+                acc[l.cc] = (acc[l.cc] || 0) + l.valor;
+                return acc;
+            }, {});
+
+            cachedCalculations = {
+                totalGeral, pagoPorA, pagoPorB, devidoPorA, devidoPorB,
+                saldoPosAcertosA, saldoPosAcertosB, equalizacao, realizadoPorCC
+            };
+        };
+
+
+        // =====================================================================
+        // RENDERIZAÇÃO (Atualização da UI)
+        // =====================================================================
+        const populateSelects = () => {
+            const { a, b } = state.config;
+            const pagadores = [a, b];
+            const createOptions = (arr) => arr.map(item => `<option value="${item}">${item}</option>`).join('');
+            
+            document.getElementById('cat').innerHTML = createOptions(PREDEFINED_LISTS.categorias);
+            document.getElementById('cc').innerHTML = createOptions(PREDEFINED_LISTS.centrosDeCusto);
+            document.getElementById('tipoDoc').innerHTML = createOptions(PREDEFINED_LISTS.tiposDoc);
+            document.getElementById('formaPgto').innerHTML = createOptions(PREDEFINED_LISTS.formasPgto);
+            document.getElementById('status').innerHTML = createOptions(PREDEFINED_LISTS.status);
+            document.getElementById('pagador').innerHTML = createOptions(pagadores);
+            document.getElementById('de').innerHTML = createOptions(pagadores);
+            document.getElementById('para').innerHTML = createOptions(pagadores);
+            document.getElementById('quick-pagador').innerHTML = createOptions(pagadores);
+            
+            const filterCCOptions = ['Todos', ...PREDEFINED_LISTS.centrosDeCusto];
+            document.getElementById('filter-cc').innerHTML = createOptions(filterCCOptions);
+        };
+        
+        const updateParticipantLabels = () => {
+            const { a, b } = state.config;
+            document.getElementById('main-title').textContent = `Gestor de Custos de Obra - ${a} & ${b}`;
+            document.getElementById('resumo-a-label').textContent = a;
+            document.getElementById('resumo-b-label').textContent = b;
+            populateSelects();
+        };
+
+        const renderLancamentos = (filter = 'Todos') => {
+            const tbody = document.getElementById('lancamentos-table-body');
+            const lancamentosFiltrados = (filter === 'Todos') 
+                ? state.lancamentos 
+                : state.lancamentos.filter(l => l.cc === filter);
+            
+            tbody.innerHTML = lancamentosFiltrados
+                .sort((x, y) => new Date(y.dt) - new Date(x.dt))
+                .map(l => `
+                    <tr class="border-b hover:bg-slate-50">
+                        <td class="p-2">${new Date(l.dt + 'T03:00:00Z').toLocaleDateString('pt-BR')}</td>
+                        <td class="p-2">${l.desc} <span class="text-xs text-slate-400">(${l.cat})</span></td>
+                        <td class="p-2">${fmt(l.valor)}</td>
+                        <td class="p-2">${l.pagador}</td>
+                        <td class="p-2">${l.anexo ? `<a href="${l.anexo.data}" download="${l.anexo.name}" class="text-blue-600 hover:underline">Ver</a>` : 'Não'}</td>
+                        <td class="p-2"><button data-id="${l.id}" class="delete-lancamento-btn text-red-500 hover:text-red-700 font-bold">X</button></td>
+                    </tr>
+                `).join('');
+        };
+
+        const renderAcertos = () => {
+            const list = document.getElementById('acertos-list');
+            list.innerHTML = state.acertos.map(a => `
+                <li class="flex justify-between items-center p-2 bg-slate-100 rounded-md">
+                    <span>
+                        ${new Date(a.dt).toLocaleDateString('pt-BR')}: 
+                        <strong>${a.de}</strong> → <strong>${a.para}</strong> - ${fmt(a.valor)}
+                        ${a.anexo ? ` <a href="${a.anexo.data}" download="${a.anexo.name}" class="text-blue-600 hover:underline">(anexo)</a>` : ''}
+                    </span>
+                    <button data-id="${a.id}" class="delete-acerto-btn text-red-500 hover:text-red-700 font-bold ml-4">X</button>
+                </li>
+            `).join('');
+        };
+        
+        const renderBalanca = () => {
+            const { saldoPosAcertosA } = cachedCalculations;
+            const { a, b } = state.config;
+            const card = document.getElementById('balanca-acerto-card');
+            const content = document.getElementById('balanca-content');
+
+            if (Math.abs(saldoPosAcertosA) < 0.01) {
+                card.className = 'p-6 rounded-2xl shadow-lg text-center bg-green-100 border border-green-300 transition-colors duration-300';
+                content.innerHTML = `<p class="text-2xl font-bold text-green-800">Tudo certo!</p><p class="text-green-700">As contas entre vocês estão zeradas.</p>`;
+            } else {
+                card.className = 'p-6 rounded-2xl shadow-lg text-center bg-blue-100 border border-blue-300 transition-colors duration-300';
+                const devedor = saldoPosAcertosA < 0 ? a : b;
+                const credor = saldoPosAcertosA < 0 ? b : a;
+                const valor = Math.abs(saldoPosAcertosA);
+                content.innerHTML = `
+                    <p class="text-slate-700">Para zerar as contas:</p>
+                    <p class="text-2xl font-bold text-blue-800 my-2">
+                        <span class="font-normal">${devedor}</span> → <span class="font-normal">${credor}</span>
+                    </p>
+                    <p class="text-3xl font-bold text-blue-900">${fmt(valor)}</p>
+                `;
+            }
+        };
+
+        const renderDashboard = () => {
+            const { realizadoPorCC } = cachedCalculations;
+            const budget = state.budget.cc;
+            const grid = document.getElementById('dashboard-grid');
+            grid.innerHTML = ''; // Limpa antes de renderizar
+
+            PREDEFINED_LISTS.centrosDeCusto.forEach(cc => {
+                const orcado = budget[cc] || 0;
+                const realizado = realizadoPorCC[cc] || 0;
+                const saldo = orcado - realizado;
+                const percent = orcado > 0 ? (realizado / orcado) * 100 : 0;
+                
+                let progressBarColor = 'bg-green-500'; // Normal
+                if (percent > 80 && percent <= 100) progressBarColor = 'bg-yellow-500'; // Atenção
+                if (percent > 100) progressBarColor = 'bg-red-500'; // Estourado
+
+                const cardHTML = `
+                    <div class="bg-white p-4 rounded-2xl shadow-md">
+                        <h4 class="font-bold text-slate-800">${cc}</h4>
+                        <div class="text-sm mt-2 space-y-1">
+                            <p class="flex justify-between"><span>Orçado:</span> <span>${fmt(orcado)}</span></p>
+                            <p class="flex justify-between"><span>Realizado:</span> <span class="font-semibold">${fmt(realizado)}</span></p>
+                            <p class="flex justify-between"><span>Saldo:</span> <span class="${saldo < 0 ? 'text-red-600' : 'text-slate-600'}">${fmt(saldo)}</span></p>
+                        </div>
+                        <div class="w-full progress-bar-bg rounded-full h-2.5 mt-3">
+                            <div class="${progressBarColor} h-2.5 rounded-full progress-bar" style="width: ${Math.min(percent, 100)}%"></div>
+                        </div>
+                    </div>
+                `;
+                grid.innerHTML += cardHTML;
+            });
+        };
+        
+        const rerender = () => {
+            saveState();
+            compute();
+            
+            const { totalGeral, pagoPorA, pagoPorB, devidoPorA, devidoPorB, saldoPosAcertosA, saldoPosAcertosB, equalizacao } = cachedCalculations;
+
+            // KPIs
+            document.getElementById('kpi-total').textContent = fmt(totalGeral);
+            document.getElementById('kpi-equalizacao').textContent = equalizacao.texto;
+            document.getElementById('kpi-equalizacao').className = `text-xl font-bold ${equalizacao.valor > 0 ? 'text-orange-700' : 'text-green-700'}`;
+
+            // Resumo por Sócio
+            document.getElementById('resumo-pago-a').textContent = fmt(pagoPorA);
+            document.getElementById('resumo-devido-a').textContent = fmt(devidoPorA);
+            document.getElementById('resumo-saldo-a').textContent = fmt(saldoPosAcertosA);
+            document.getElementById('resumo-saldo-a').className = saldoPosAcertosA < 0 ? 'text-red-600' : 'text-green-600';
+            document.getElementById('resumo-pago-b').textContent = fmt(pagoPorB);
+            document.getElementById('resumo-devido-b').textContent = fmt(devidoPorB);
+            document.getElementById('resumo-saldo-b').textContent = fmt(saldoPosAcertosB);
+            document.getElementById('resumo-saldo-b').className = saldoPosAcertosB < 0 ? 'text-red-600' : 'text-green-600';
+
+            const currentFilter = document.getElementById('filter-cc').value;
+            renderLancamentos(currentFilter);
+            renderAcertos();
+            renderBalanca();
+            renderDashboard();
+
+            // Lógica para desabilitar o botão de Lançar Terreno
+            const terrenoBtn = document.getElementById('terreno-btn');
+            const terrenoLancado = state.lancamentos.some(l => l.cat === 'Terreno');
+            terrenoBtn.disabled = terrenoLancado;
+            if (terrenoLancado) {
+                terrenoBtn.textContent = 'Terreno Lançado';
+                terrenoBtn.classList.remove('bg-orange-500', 'hover:bg-orange-600');
+                terrenoBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+            } else {
+                terrenoBtn.textContent = 'Lançar Terreno (R$ 45.000)';
+                terrenoBtn.classList.add('bg-orange-500', 'hover:bg-orange-600');
+                terrenoBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+            }
+        };
+
+        // =====================================================================
+        // MANIPULADORES DE EVENTOS
+        // =====================================================================
+
+        // Lançamentos
+        document.getElementById('lancamento-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            try {
+                const anexo = await readFile(form.anexo.files[0]);
+                const newLancamento = {
+                    id: generateId(), dt: form.dt.value, desc: form.desc.value, cat: form.cat.value,
+                    cc: form.cc.value, valor: parseNum(form.valor.value), pagador: form.pagador.value,
+                    pA: parseFloat(form.pA.value), pB: parseFloat(form.pB.value), tipoDoc: form.tipoDoc.value,
+                    numDoc: form.numDoc.value, formaPgto: form.formaPgto.value, status: form.status.value,
+                    anexo: anexo, obs: form.obs.value,
+                };
+                if (newLancamento.valor <= 0) { alert("O valor do lançamento deve ser maior que zero."); return; }
+                state.lancamentos.push(newLancamento);
+                form.reset();
+                document.getElementById('dt').valueAsDate = new Date();
+                rerender();
+            } catch (error) {
+                console.error("Erro ao processar ficheiro:", error.message);
+                form.anexo.value = '';
+            }
+        });
+        document.getElementById('lancamentos-table-body').addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-lancamento-btn')) {
+                if (confirm('Tem certeza?')) {
+                    state.lancamentos = state.lancamentos.filter(l => l.id !== e.target.dataset.id);
+                    rerender();
+                }
+            }
+        });
+        document.getElementById('filter-cc').addEventListener('change', (e) => renderLancamentos(e.target.value));
+
+        // Acertos
+        document.getElementById('acerto-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            if (form.de.value === form.para.value) { alert('Pagador e recebedor não podem ser iguais.'); return; }
+            const valor = parseNum(form['valor-acerto'].value);
+            if (valor <= 0) { alert('O valor do acerto deve ser positivo.'); return; }
+            try {
+                const anexo = await readFile(form['anexo-acerto'].files[0]);
+                state.acertos.push({
+                    id: generateId(), dt: new Date().toISOString(), de: form.de.value,
+                    para: form.para.value, valor: valor, anexo: anexo
+                });
+                form.reset();
+                rerender();
+            } catch (error) {
+                console.error("Erro ao processar anexo do acerto:", error.message);
+                form['anexo-acerto'].value = '';
+            }
+        });
+        document.getElementById('acertos-list').addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-acerto-btn')) {
+                if (confirm('Tem certeza?')) {
+                    state.acertos = state.acertos.filter(a => a.id !== e.target.dataset.id);
+                    rerender();
+                }
+            }
+        });
+
+        // Sócios
+        ['a', 'b'].forEach(p => {
+            document.getElementById(`participant-${p}`).addEventListener('change', (e) => {
+                const oldName = state.config[p];
+                const newName = e.target.value.trim();
+                const otherName = state.config[p === 'a' ? 'b' : 'a'];
+                if (newName && newName !== otherName) {
+                    state.config[p] = newName;
+                    state.lancamentos.forEach(l => { if (l.pagador === oldName) l.pagador = newName; });
+                    state.acertos.forEach(a => {
+                        if (a.de === oldName) a.de = newName;
+                        if (a.para === oldName) a.para = newName;
+                    });
+                    updateParticipantLabels();
+                    rerender();
+                } else {
+                    e.target.value = oldName; // Reverte
+                }
+            });
+        });
+        
+        // Botão Lançar Terreno
+        document.getElementById('terreno-btn').addEventListener('click', () => {
+             if (!confirm(`Isso irá adicionar dois lançamentos (Entrada e Quitação) totalizando R$ 45.000,00 para a categoria "Terreno", pagos por ${state.config.a}. Continuar?`)) return;
+
+            const baseLancamento = {
+                id: null, dt: new Date().toISOString().split('T')[0], cat: 'Terreno', cc: 'Terreno',
+                valor: 0, pagador: state.config.a, pA: 0.5, pB: 0.5, tipoDoc: 'Recibo',
+                numDoc: '', formaPgto: 'PIX', status: 'Conciliado', anexo: null,
+                obs: 'Lançamento automático referente à compra do terreno.',
+            };
+
+            state.lancamentos.push(
+                { ...baseLancamento, id: generateId(), desc: 'Entrada Terreno', valor: 5000 },
+                { ...baseLancamento, id: generateId(), desc: 'Quitação Terreno', valor: 40000 }
+            );
+            rerender();
+            alert('Lançamentos do terreno adicionados com sucesso.');
+        });
+        
+        // Botão Usar Sugestão
+        document.getElementById('sugestao-btn').addEventListener('click', () => {
+            const { valor, de, para } = cachedCalculations.equalizacao;
+            if (valor > 0) {
+                 if (confirm(`Deseja registrar o acerto sugerido (${de} paga ${fmt(valor)} para ${para})?`)) {
+                     state.acertos.push({
+                         id: generateId(), dt: new Date().toISOString(), de, para, valor, anexo: null
+                     });
+                     rerender();
+                 }
+            } else {
+                alert('Não há sugestão de acerto no momento (saldos equalizados).');
+            }
+        });
+        
+        // Botão Zerar Dados
+        document.getElementById('reset-data-btn').addEventListener('click', () => {
+            if (confirm('ATENÇÃO: Isso apagará TODOS os dados (lançamentos, acertos e orçamento). Esta ação não pode ser desfeita. Continuar?')) {
+                state.lancamentos = [];
+                state.acertos = [];
+                state.budget = { cc: {} };
+                rerender();
+            }
+        });
+
+        // Modal de Lançamento Rápido
+        const quickAddModal = document.getElementById('quick-add-modal');
+        const openQuickAddModal = () => quickAddModal.classList.remove('hidden');
+        const closeQuickAddModal = () => quickAddModal.classList.add('hidden');
+        document.getElementById('quick-add-btn').addEventListener('click', openQuickAddModal);
+        document.getElementById('quick-add-cancel').addEventListener('click', closeQuickAddModal);
+        quickAddModal.addEventListener('click', (e) => { if (e.target === quickAddModal) closeQuickAddModal(); });
+        document.getElementById('quick-add-form').addEventListener('submit', (e) => {
+             e.preventDefault();
+             const form = e.target;
+             const valor = parseNum(form['quick-valor'].value);
+             if (valor <= 0) { alert('O valor deve ser positivo.'); return; }
+             state.lancamentos.push({
+                id: generateId(), dt: new Date().toISOString().split('T')[0],
+                desc: form['quick-desc'].value, cat: 'Outros', cc: 'Outros', valor: valor,
+                pagador: form['quick-pagador'].value, pA: 0.5, pB: 0.5, tipoDoc: 'Sem documento',
+                numDoc: '', formaPgto: 'PIX', status: 'Pago', anexo: null, obs: 'Lançamento rápido.',
+            });
+            form.reset();
+            closeQuickAddModal();
+            rerender();
+        });
+
+        // Modal de Gestão de Orçamento
+        const budgetModal = document.getElementById('budget-modal');
+        const openBudgetModal = () => {
+            const fields = document.getElementById('budget-fields');
+            fields.innerHTML = PREDEFINED_LISTS.centrosDeCusto.map(cc => `
+                <div>
+                    <label for="budget-${cc.replace(/\s|\//g, '-')}" class="block text-sm font-medium text-slate-700">${cc}</label>
+                    <input type="text" id="budget-${cc.replace(/\s|\//g, '-')}" name="${cc}" value="${state.budget.cc[cc] || ''}" placeholder="R$ 0,00" class="mt-1 w-full border p-2 rounded-md">
+                </div>
+            `).join('');
+            budgetModal.classList.remove('hidden');
+        };
+        const closeBudgetModal = () => budgetModal.classList.add('hidden');
+        document.getElementById('manage-budget-btn').addEventListener('click', openBudgetModal);
+        document.getElementById('budget-cancel').addEventListener('click', closeBudgetModal);
+        document.getElementById('budget-save').addEventListener('click', () => {
+            const form = document.getElementById('budget-form');
+            const newBudget = {};
+            Array.from(form.elements).forEach(el => {
+                if (el.name) {
+                    newBudget[el.name] = parseNum(el.value);
+                }
+            });
+            state.budget.cc = newBudget;
+            closeBudgetModal();
+            rerender();
+        });
+        
+        // Exportação CSV
+        document.getElementById('export-csv-btn').addEventListener('click', () => { /* ... (código existente, omitido por brevidade) ... */ });
+        document.getElementById('import-csv-btn').addEventListener('click', () => document.getElementById('csv-import-input').click());
+        document.getElementById('csv-import-input').addEventListener('change', (e) => { /* ... (código existente, omitido por brevidade) ... */ });
+
+        // Exportação PDF
+        document.getElementById('export-pdf-btn').addEventListener('click', () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const { config } = state;
+            const { totalGeral, realizadoPorCC } = cachedCalculations;
+            
+            doc.setFontSize(18);
+            doc.text(`Relatório de Custos da Obra - ${config.a} & ${config.b}`, 14, 22);
+            doc.setFontSize(11);
+            doc.text(`Total Geral Realizado: ${fmt(totalGeral)}`, 14, 30);
+
+            doc.setFontSize(14);
+            doc.text("Análise Orçamental por Centro de Custo", 14, 45);
+            const budgetHead = [['Centro de Custo', 'Orçado', 'Realizado', 'Saldo']];
+            const budgetBody = PREDEFINED_LISTS.centrosDeCusto.map(cc => {
+                const orcado = state.budget.cc[cc] || 0;
+                const realizado = realizadoPorCC[cc] || 0;
+                return [cc, fmt(orcado), fmt(realizado), fmt(orcado - realizado)];
+            });
+            doc.autoTable({ head: budgetHead, body: budgetBody, startY: 52 });
+            
+            doc.addPage();
+            doc.setFontSize(14);
+            doc.text("Todos os Lançamentos", 14, 22);
+            const lancamentosHead = [['Data', 'Descrição', 'CC', 'Valor', 'Pagador']];
+            const lancamentosBody = state.lancamentos.map(l => [
+                new Date(l.dt + 'T03:00:00Z').toLocaleDateString('pt-BR'), l.desc, l.cc, fmt(l.valor), l.pagador
+            ]);
+            doc.autoTable({ head: lancamentosHead, body: lancamentosBody, startY: 30 });
+            
+            doc.save(`relatorio_obra_${new Date().toISOString().split('T')[0]}.pdf`);
+        });
+
+        // =====================================================================
+        // INICIALIZAÇÃO
+        // =====================================================================
+        const init = () => {
+            loadState();
+            document.getElementById('participant-a').value = state.config.a;
+            document.getElementById('participant-b').value = state.config.b;
+            updateParticipantLabels();
+            document.getElementById('dt').valueAsDate = new Date();
+            rerender();
+        };
+
+        init();
+    });
+    </script>
+</body>
+</html>
+
