@@ -127,7 +127,7 @@
         const loadingOverlay = document.getElementById('loading-overlay');
 
         let currentUser = null;
-        let state = { lancamentos: [], acertos: [], config: { a: 'Sócio A', b: 'Sócio B', budget: { cc: {} } }, history: [] };
+        let state = { lancamentos: [], acertos: [], config: null, history: [] };
         let listeners = [];
         let cachedCalculations = {};
         
@@ -146,6 +146,7 @@
             if (user) {
                 currentUser = user;
                 loginScreen.classList.add('hidden');
+                loadingOverlay.classList.remove('hidden');
                 appWrapper.classList.remove('hidden');
                 initializeAppUI();
             } else {
@@ -172,10 +173,22 @@
         function setupRealtimeListeners() {
             listeners.forEach(unsubscribe => unsubscribe());
             listeners = [];
-            const unsubLancamentos = onSnapshot(query(lancamentosCol, orderBy("dt", "desc")), snap => { state.lancamentos = snap.docs.map(d => ({...d.data(), id: d.id })); rerender(); });
-            const unsubAcertos = onSnapshot(query(acertosCol, orderBy("dt", "desc")), snap => { state.acertos = snap.docs.map(d => ({...d.data(), id: d.id })); rerender(); });
-            const unsubConfig = onSnapshot(configDocRef, doc => { state.config = doc.exists() ? doc.data() : { a: 'Sócio A', b: 'Sócio B', budget: { cc: {} } }; rerender(); });
+            let configLoaded = false;
+
+            const onConfigLoad = () => {
+                configLoaded = true;
+                loadingOverlay.classList.add('hidden');
+                rerender();
+            };
+
+            const unsubLancamentos = onSnapshot(query(lancamentosCol, orderBy("dt", "desc")), snap => { state.lancamentos = snap.docs.map(d => ({...d.data(), id: d.id })); if(configLoaded) rerender(); });
+            const unsubAcertos = onSnapshot(query(acertosCol, orderBy("dt", "desc")), snap => { state.acertos = snap.docs.map(d => ({...d.data(), id: d.id })); if(configLoaded) rerender(); });
+            const unsubConfig = onSnapshot(configDocRef, doc => { 
+                state.config = doc.exists() ? doc.data() : { a: 'Sócio A', b: 'Sócio B', budget: { cc: {} } };
+                if (!configLoaded) onConfigLoad(); else rerender();
+            });
             const unsubHistory = onSnapshot(query(historyCol, orderBy("timestamp", "desc")), snap => { state.history = snap.docs.map(d => d.data()); renderHistoryModal(); });
+            
             listeners.push(unsubLancamentos, unsubAcertos, unsubConfig, unsubHistory);
         }
         
@@ -306,15 +319,6 @@
                     <td class="p-2"><button data-id="${l.id}" class="delete-lancamento-btn text-red-500 font-bold hover:text-red-700">X</button></td>
                 </tr>
             `).join('');
-            document.querySelectorAll('.delete-lancamento-btn').forEach(btn => btn.addEventListener('click', async e => {
-                const id = e.target.dataset.id;
-                if (confirm('Tem a certeza que deseja excluir este lançamento?')) {
-                    const lancamento = state.lancamentos.find(l => l.id === id);
-                    if (lancamento.anexo) await deleteObject(ref(storage, lancamento.anexo.path));
-                    await deleteDoc(doc(db, "lancamentos", id));
-                    await logEvent('Lançamento Excluído', { desc: lancamento.desc, valor: fmt(lancamento.valor) });
-                }
-            }));
         }
 
         function renderAcertos() {
@@ -326,15 +330,6 @@
                     <button data-id="${a.id}" class="delete-acerto-btn text-red-500 ml-4 font-bold hover:text-red-700">X</button>
                 </li>`
             }).join('');
-            document.querySelectorAll('.delete-acerto-btn').forEach(btn => btn.addEventListener('click', async e => {
-                const id = e.target.dataset.id;
-                if (confirm('Tem a certeza que deseja excluir este acerto?')) {
-                    const acerto = state.acertos.find(a => a.id === id);
-                    if (acerto.anexo) await deleteObject(ref(storage, acerto.anexo.path));
-                    await deleteDoc(doc(db, "acertos", id));
-                    await logEvent('Acerto Excluído', { valor: fmt(acerto.valor) });
-                }
-            }));
         }
 
         function renderResumoSocios() {
@@ -385,83 +380,96 @@
         }
         
         function addEventListeners() {
-            document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+            appWrapper.addEventListener('click', async e => {
+                if (e.target.id === 'logout-btn') signOut(auth);
+                if (e.target.matches('.delete-lancamento-btn')) {
+                    const id = e.target.dataset.id;
+                    if (confirm('Tem a certeza que deseja excluir este lançamento?')) {
+                        const lancamento = state.lancamentos.find(l => l.id === id);
+                        if (lancamento.anexo) await deleteObject(ref(storage, lancamento.anexo.path));
+                        await deleteDoc(doc(db, "lancamentos", id));
+                        await logEvent('Lançamento Excluído', { desc: lancamento.desc, valor: fmt(lancamento.valor) });
+                    }
+                }
+                if (e.target.matches('.delete-acerto-btn')) {
+                     const id = e.target.dataset.id;
+                    if (confirm('Tem a certeza que deseja excluir este acerto?')) {
+                        const acerto = state.acertos.find(a => a.id === id);
+                        if (acerto.anexo) await deleteObject(ref(storage, acerto.anexo.path));
+                        await deleteDoc(doc(db, "acertos", id));
+                        await logEvent('Acerto Excluído', { valor: fmt(acerto.valor) });
+                    }
+                }
+                if (e.target.id === 'quick-add-btn') document.getElementById('quick-add-modal').classList.remove('hidden');
+                if (e.target.id === 'quick-add-cancel' || e.target.closest('#quick-add-modal') && e.target.classList.contains('modal-overlay')) document.getElementById('quick-add-modal').classList.add('hidden');
+                if (e.target.id === 'manage-budget-btn') {
+                    const fields = document.getElementById('budget-fields');
+                    const budget = state.config.budget || { cc: {} };
+                    fields.innerHTML = PREDEFINED_LISTS.centrosDeCusto.map(cc => `<div><label class="block text-sm font-medium text-slate-700">${cc}</label><input type="text" name="${cc}" value="${budget.cc[cc] || ''}" class="mt-1 w-full border p-2 rounded-md" placeholder="R$ 0,00"></div>`).join('');
+                    document.getElementById('budget-modal').classList.remove('hidden');
+                }
+                if (e.target.id === 'budget-cancel' || e.target.closest('#budget-modal') && e.target.classList.contains('modal-overlay')) document.getElementById('budget-modal').classList.add('hidden');
+                if (e.target.id === 'budget-save') {
+                    const newBudget = { cc: {} };
+                    document.querySelectorAll('#budget-fields input').forEach(i => newBudget.cc[i.name] = parseNum(i.value));
+                    await setDoc(configDocRef, { budget: newBudget }, { merge: true });
+                    await logEvent('Orçamento Atualizado');
+                    document.getElementById('budget-modal').classList.add('hidden');
+                }
+                if (e.target.id === 'history-btn') document.getElementById('history-modal').classList.remove('hidden');
+                if (e.target.id === 'history-close' || e.target.closest('#history-modal') && e.target.classList.contains('modal-overlay')) document.getElementById('history-modal').classList.add('hidden');
+            });
             
             document.getElementById('participant-a').addEventListener('change', async e => await setDoc(configDocRef, { a: e.target.value }, { merge: true }));
             document.getElementById('participant-b').addEventListener('change', async e => await setDoc(configDocRef, { b: e.target.value }, { merge: true }));
 
-            const lancamentoForm = document.getElementById('lancamento-form');
-            lancamentoForm.addEventListener('submit', async (e) => {
+            document.getElementById('lancamento-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const anexo = await handleFileUpload(e.target.anexo.files[0], 'lancamentos');
+                const form = e.target;
+                const anexo = await handleFileUpload(form.anexo.files[0], 'lancamentos');
                 const lancamento = {
-                    dt: e.target.dt.value, desc: e.target.desc.value, cat: e.target.cat.value, cc: e.target.cc.value,
-                    valor: parseNum(e.target.valor.value), pagador: e.target.pagador.value,
-                    pA: parseFloat(e.target.pA.value), pB: parseFloat(e.target.pB.value), anexo,
+                    dt: form.dt.value, desc: form.desc.value, cat: form.cat.value, cc: form.cc.value,
+                    valor: parseNum(form.valor.value), pagador: form.pagador.value,
+                    pA: parseFloat(form.pA.value), pB: parseFloat(form.pB.value), anexo,
                     createdBy: currentUser.displayName, createdAt: serverTimestamp()
                 };
                 if(lancamento.valor <= 0) return alert('O valor deve ser positivo.');
                 await addDoc(lancamentosCol, lancamento);
                 await logEvent('Lançamento Adicionado', { desc: lancamento.desc, valor: fmt(lancamento.valor) });
-                lancamentoForm.reset();
+                form.reset();
                 document.getElementById('dt').valueAsDate = new Date();
             });
             
-            const acertoForm = document.getElementById('acerto-form');
-            acertoForm.addEventListener('submit', async e => {
+            document.getElementById('acerto-form').addEventListener('submit', async e => {
                 e.preventDefault();
-                const valor = parseNum(e.target['valor-acerto'].value);
-                if (e.target.de.value === e.target.para.value) return alert('Pagador e recebedor devem ser diferentes.');
+                const form = e.target;
+                const valor = parseNum(form['valor-acerto'].value);
+                if (form.de.value === form.para.value) return alert('Pagador e recebedor devem ser diferentes.');
                 if (valor <= 0) return alert('O valor do acerto deve ser positivo.');
-                const anexo = await handleFileUpload(e.target['anexo-acerto'].files[0], 'acertos');
-                const acerto = { dt: serverTimestamp(), de: e.target.de.value, para: e.target.para.value, valor, anexo };
+                const anexo = await handleFileUpload(form['anexo-acerto'].files[0], 'acertos');
+                const acerto = { dt: serverTimestamp(), de: form.de.value, para: form.para.value, valor, anexo };
                 await addDoc(acertosCol, acerto);
                 await logEvent('Acerto Registado', { de: acerto.de, para: acerto.para, valor: fmt(acerto.valor) });
-                acertoForm.reset();
+                form.reset();
             });
-
-            document.getElementById('filter-cc').addEventListener('change', rerender);
             
-            const quickAddModal = document.getElementById('quick-add-modal');
-            document.getElementById('quick-add-btn').addEventListener('click', () => quickAddModal.classList.remove('hidden'));
-            document.getElementById('quick-add-cancel').addEventListener('click', () => quickAddModal.classList.add('hidden'));
-            quickAddModal.addEventListener('click', e => { if(e.target === quickAddModal) quickAddModal.classList.add('hidden') });
             document.getElementById('quick-add-form').addEventListener('submit', async e => {
                 e.preventDefault();
-                const valor = parseNum(e.target['quick-valor'].value);
+                const form = e.target;
+                const valor = parseNum(form['quick-valor'].value);
                 if (valor <= 0) return alert('O valor deve ser positivo.');
                 const lancamento = {
-                    dt: new Date().toISOString().split('T')[0], desc: e.target['quick-desc'].value, cat: 'Outros', cc: 'Outros',
-                    valor, pagador: e.target['quick-pagador'].value, pA: 0.5, pB: 0.5, anexo: null,
+                    dt: new Date().toISOString().split('T')[0], desc: form['quick-desc'].value, cat: 'Outros', cc: 'Outros',
+                    valor, pagador: form['quick-pagador'].value, pA: 0.5, pB: 0.5, anexo: null,
                     createdBy: currentUser.displayName, createdAt: serverTimestamp()
                 };
                 await addDoc(lancamentosCol, lancamento);
                 await logEvent('Lanç. Rápido Adicionado', { desc: lancamento.desc, valor: fmt(lancamento.valor) });
-                e.target.reset();
-                quickAddModal.classList.add('hidden');
-            });
-            
-            const budgetModal = document.getElementById('budget-modal');
-            document.getElementById('manage-budget-btn').addEventListener('click', () => {
-                const fields = document.getElementById('budget-fields');
-                const budget = state.config.budget || { cc: {} };
-                fields.innerHTML = PREDEFINED_LISTS.centrosDeCusto.map(cc => `<div><label class="block text-sm font-medium text-slate-700">${cc}</label><input type="text" name="${cc}" value="${budget.cc[cc] || ''}" class="mt-1 w-full border p-2 rounded-md" placeholder="R$ 0,00"></div>`).join('');
-                budgetModal.classList.remove('hidden');
-            });
-            document.getElementById('budget-cancel').addEventListener('click', () => budgetModal.classList.add('hidden'));
-            budgetModal.addEventListener('click', e => { if(e.target === budgetModal) budgetModal.classList.add('hidden') });
-            document.getElementById('budget-save').addEventListener('click', async () => {
-                const newBudget = { cc: {} };
-                document.querySelectorAll('#budget-fields input').forEach(i => newBudget.cc[i.name] = parseNum(i.value));
-                await setDoc(configDocRef, { budget: newBudget }, { merge: true });
-                await logEvent('Orçamento Atualizado');
-                budgetModal.classList.add('hidden');
+                form.reset();
+                document.getElementById('quick-add-modal').classList.add('hidden');
             });
 
-            const historyModal = document.getElementById('history-modal');
-            document.getElementById('history-btn').addEventListener('click', () => historyModal.classList.remove('hidden'));
-            document.getElementById('history-close').addEventListener('click', () => historyModal.classList.add('hidden'));
-            historyModal.addEventListener('click', e => { if(e.target === historyModal) historyModal.classList.add('hidden') });
+            document.getElementById('filter-cc').addEventListener('change', rerender);
         }
     </script>
 </body>
