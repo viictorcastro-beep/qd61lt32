@@ -12,7 +12,10 @@
     
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
-        .hidden { display: none; }
+        .hidden { display: none !important; }
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .justify-center { justify-content: center; }
         .modal-overlay { transition: opacity 0.2s ease-in-out; }
         .progress-bar-bg { background-color: #e5e7eb; }
         .progress-bar { transition: width 0.3s ease-in-out; }
@@ -34,7 +37,7 @@
     </div>
 
     <div id="app-wrapper" class="hidden"></div>
-    <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50 hidden"><div class="loader"></div></div>
+    <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-[100] hidden"><div class="loader"></div></div>
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
@@ -60,7 +63,7 @@
 
         const lancamentosCol = collection(db, "lancamentos");
         const acertosCol = collection(db, "acertos");
-        const configDoc = doc(db, "config", "main");
+        const configDocRef = doc(db, "config", "main");
         const historyCol = collection(db, "history");
 
         const loginScreen = document.getElementById('login-screen');
@@ -77,7 +80,7 @@
             centrosDeCusto: ['Outros', 'Terreno', 'Projeto', 'Fundações', 'Estrutura/Alvenaria', 'Cobertura', 'Elétrica', 'Hidráulica', 'Revestimentos/Pisos', 'Esquadrias/Vidros', 'Pintura', 'Paisagismo', 'Licenças/Taxas', 'Equalização'],
         };
         const fmt = (n) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n || 0);
-        const parseNum = (v) => parseFloat(String(v).replace(/\./g, '').replace(',', '.')) || 0;
+        const parseNum = (v) => parseFloat(String(v || '').replace(/\./g, '').replace(',', '.')) || 0;
 
         document.getElementById('login-btn').addEventListener('click', () => {
             signInWithPopup(auth, provider).catch(error => console.error("Login Error:", error));
@@ -151,14 +154,14 @@
                         </div>
                         <aside class="space-y-8">
                             <section><h2 class="text-2xl font-bold mb-4 text-slate-800">Resumo Financeiro</h2><div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div class="bg-white p-4 rounded-2xl shadow-md text-center"><h3 class="text-sm font-semibold text-slate-500">Total Geral</h3><p id="kpi-total" class="text-2xl font-bold"></p></div><div class="bg-yellow-100 border border-yellow-300 p-4 rounded-2xl shadow-md text-center"><h3 class="text-sm font-semibold text-slate-600">Equalização</h3><p id="kpi-equalizacao" class="text-xl font-bold"></p></div></div></section>
-                            <section class="bg-white p-6 rounded-2xl shadow-lg"><h2 class="text-xl font-bold mb-4">Acertos</h2><form id="acerto-form" class="space-y-4"><div class="grid grid-cols-2 gap-4"><div><label for="de">De:</label><select id="de" class="w-full border p-2 rounded-md"></select></div><div><label for="para">Para:</label><select id="para" class="w-full border p-2 rounded-md"></select></div></div><div><label for="valor-acerto">Valor:</label><input type="text" id="valor-acerto" class="w-full border p-2 rounded-md" required></div><div><label for="anexo-acerto">Anexo:</label><input type="file" id="anexo-acerto" class="w-full border p-2 rounded-md"></div><div class="flex gap-2"><button type="submit" class="w-full bg-teal-600 text-white py-2 rounded-md">Registar</button><button type="button" id="sugestao-btn" class="w-full bg-gray-500 text-white py-2 rounded-md">Sugestão</button></div></form><div class="mt-6"><h3 class="font-semibold mb-2">Histórico de Acertos</h3><ul id="acertos-list" class="space-y-2 text-sm"></ul></div></section>
+                            <section class="bg-white p-6 rounded-2xl shadow-lg"><h2 class="text-xl font-bold mb-4">Acertos</h2><form id="acerto-form" class="space-y-4"><div class="grid grid-cols-2 gap-4"><div><label for="de" class="block text-sm">De:</label><select id="de" class="w-full border p-2 rounded-md"></select></div><div><label for="para" class="block text-sm">Para:</label><select id="para" class="w-full border p-2 rounded-md"></select></div></div><div><label for="valor-acerto" class="block text-sm">Valor:</label><input type="text" id="valor-acerto" class="w-full border p-2 rounded-md" required></div><div><label for="anexo-acerto" class="block text-sm">Anexo:</label><input type="file" id="anexo-acerto" class="w-full border p-2 rounded-md"></div><div class="flex gap-2"><button type="submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 rounded-md shadow-sm">Registrar</button><button type="button" id="sugestao-btn" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 rounded-md shadow-sm">Sugestão</button></div></form><div class="mt-6"><h3 class="font-semibold mb-2">Histórico de Acertos</h3><ul id="acertos-list" class="space-y-2 text-sm"></ul></div></section>
                             <section class="bg-white p-6 rounded-2xl shadow-lg"><h2 class="text-xl font-bold mb-4">Detalhes por Sócio</h2><div id="resumo-socios" class="space-y-4"></div></section>
                         </aside>
                     </main>
                 </div>
-                <div id="quick-add-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-md"><h2 class="text-xl font-bold mb-4">Lançamento Rápido</h2><form id="quick-add-form"><div class="space-y-4"><input type="text" id="quick-desc" class="w-full border p-2 rounded-md" placeholder="Descrição" required><input type="text" id="quick-valor" class="w-full border p-2 rounded-md" placeholder="Valor" required><select id="quick-pagador" class="w-full border p-2 rounded-md"></select></div><div class="flex gap-4 mt-6"><button type="submit" class="w-full bg-cyan-500 text-white py-2 rounded-md">Adicionar</button><button type="button" id="quick-add-cancel" class="w-full bg-gray-300 py-2 rounded-md">Cancelar</button></div></form></div></div>
-                <div id="budget-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-2xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Gerir Orçamento</h2><form id="budget-form" class="flex-grow overflow-y-auto pr-2"><div id="budget-fields" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div></form><div class="flex gap-4 mt-6 pt-4 border-t"><button type="button" id="budget-save" class="w-full bg-sky-600 text-white py-2 rounded-md">Salvar</button><button type="button" id="budget-cancel" class="w-full bg-gray-300 py-2 rounded-md">Cancelar</button></div></div></div>
-                <div id="history-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-3xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Histórico de Eventos</h2><div id="history-content" class="flex-grow overflow-y-auto pr-2 text-sm"></div><div class="mt-6 pt-4 border-t"><button type="button" id="history-close" class="w-full bg-gray-300 py-2 rounded-md">Fechar</button></div></div></div>
+                <div id="quick-add-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-md"><h2 class="text-xl font-bold mb-4">Lançamento Rápido</h2><form id="quick-add-form"><div class="space-y-4"><input type="text" id="quick-desc" class="w-full border p-2 rounded-md" placeholder="Descrição" required><input type="text" id="quick-valor" class="w-full border p-2 rounded-md" placeholder="Valor" required><select id="quick-pagador" class="w-full border p-2 rounded-md"></select></div><div class="flex gap-4 mt-6"><button type="submit" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 rounded-md">Adicionar</button><button type="button" id="quick-add-cancel" class="w-full bg-gray-300 hover:bg-gray-400 font-bold py-2 rounded-md">Cancelar</button></div></form></div></div>
+                <div id="budget-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-2xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Gerir Orçamento</h2><form id="budget-form" class="flex-grow overflow-y-auto pr-2"><div id="budget-fields" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div></form><div class="flex gap-4 mt-6 pt-4 border-t"><button type="button" id="budget-save" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 rounded-md">Salvar</button><button type="button" id="budget-cancel" class="w-full bg-gray-300 hover:bg-gray-400 font-bold py-2 rounded-md">Cancelar</button></div></div></div>
+                <div id="history-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-3xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Histórico de Eventos</h2><div id="history-content" class="flex-grow overflow-y-auto pr-2 text-sm"></div><div class="mt-6 pt-4 border-t"><button type="button" id="history-close" class="w-full bg-gray-300 hover:bg-gray-400 font-bold py-2 rounded-md">Fechar</button></div></div></div>
             `;
             
             addEventListeners();
@@ -177,7 +180,7 @@
             listeners = [];
             const unsubLancamentos = onSnapshot(query(lancamentosCol, orderBy("dt", "desc")), snap => { state.lancamentos = snap.docs.map(d => ({...d.data(), id: d.id })); rerender(); });
             const unsubAcertos = onSnapshot(query(acertosCol, orderBy("dt", "desc")), snap => { state.acertos = snap.docs.map(d => ({...d.data(), id: d.id })); rerender(); });
-            const unsubConfig = onSnapshot(configDoc, doc => { state.config = doc.exists() ? doc.data() : { a: 'Sócio A', b: 'Sócio B', budget: { cc: {} } }; rerender(); });
+            const unsubConfig = onSnapshot(configDocRef, doc => { state.config = doc.exists() ? doc.data() : { a: 'Sócio A', b: 'Sócio B', budget: { cc: {} } }; rerender(); });
             const unsubHistory = onSnapshot(query(historyCol, orderBy("timestamp", "desc")), snap => { state.history = snap.docs.map(d => d.data()); renderHistoryModal(); });
             listeners.push(unsubLancamentos, unsubAcertos, unsubConfig, unsubHistory);
         }
@@ -216,12 +219,6 @@
         function rerender() {
             if (!state.config || !document.getElementById('app')) return;
             compute();
-            const { a, b, budget } = state.config;
-            
-            document.getElementById('participant-a').value = a;
-            document.getElementById('participant-b').value = b;
-            document.getElementById('label-pa').textContent = `${a} (%):`;
-            document.getElementById('label-pb').textContent = `${b} (%):`;
             
             populateSelects();
             renderDashboard();
@@ -231,6 +228,12 @@
             renderResumoSocios();
             document.getElementById('kpi-total').textContent = fmt(cachedCalculations.totalGeral);
             document.getElementById('kpi-equalizacao').textContent = cachedCalculations.equalizacao.texto;
+
+            const { a, b } = state.config;
+            document.getElementById('participant-a').value = a;
+            document.getElementById('participant-b').value = b;
+            document.getElementById('label-pa').textContent = `${a} (%):`;
+            document.getElementById('label-pb').textContent = `${b} (%):`;
         }
         
         function populateSelects() {
@@ -301,31 +304,33 @@
                     <td class="p-2">${l.desc}</td>
                     <td class="p-2">${fmt(l.valor)}</td>
                     <td class="p-2">${l.pagador}</td>
-                    <td class="p-2">${l.anexo ? `<a href="${l.anexo.url}" target="_blank" class="text-blue-600">Ver</a>` : 'Não'}</td>
-                    <td class="p-2"><button data-id="${l.id}" class="delete-lancamento-btn text-red-500">X</button></td>
+                    <td class="p-2">${l.anexo ? `<a href="${l.anexo.url}" target="_blank" class="text-blue-600 hover:underline">Ver</a>` : 'Não'}</td>
+                    <td class="p-2"><button data-id="${l.id}" class="delete-lancamento-btn text-red-500 font-bold hover:text-red-700">X</button></td>
                 </tr>
             `).join('');
             document.querySelectorAll('.delete-lancamento-btn').forEach(btn => btn.addEventListener('click', async e => {
                 const id = e.target.dataset.id;
-                if (confirm('Tem a certeza?')) {
+                if (confirm('Tem a certeza que deseja excluir este lançamento?')) {
                     const lancamento = state.lancamentos.find(l => l.id === id);
                     if (lancamento.anexo) await deleteObject(ref(storage, lancamento.anexo.path));
                     await deleteDoc(doc(db, "lancamentos", id));
-                    await logEvent('Lançamento Excluído', { desc: lancamento.desc });
+                    await logEvent('Lançamento Excluído', { desc: lancamento.desc, valor: fmt(lancamento.valor) });
                 }
             }));
         }
 
         function renderAcertos() {
             const list = document.getElementById('acertos-list');
-            list.innerHTML = state.acertos.map(a => `
-                <li class="flex justify-between items-center p-2 bg-slate-100 rounded-md">
-                    <span>${new Date(a.dt.toDate()).toLocaleDateString()}: <strong>${a.de}</strong> → <strong>${a.para}</strong> - ${fmt(a.valor)} ${a.anexo ? `<a href="${a.anexo.url}" target="_blank" class="text-blue-600">(anexo)</a>` : ''}</span>
-                    <button data-id="${a.id}" class="delete-acerto-btn text-red-500 ml-4">X</button>
-                </li>`).join('');
+            list.innerHTML = state.acertos.map(a => {
+                const date = a.dt?.toDate ? new Date(a.dt.toDate()).toLocaleDateString('pt-BR') : '...';
+                return `<li class="flex justify-between items-center p-2 bg-slate-100 rounded-md">
+                    <span>${date}: <strong>${a.de}</strong> → <strong>${a.para}</strong> - ${fmt(a.valor)} ${a.anexo ? `<a href="${a.anexo.url}" target="_blank" class="text-blue-600 hover:underline">(anexo)</a>` : ''}</span>
+                    <button data-id="${a.id}" class="delete-acerto-btn text-red-500 ml-4 font-bold hover:text-red-700">X</button>
+                </li>`
+            }).join('');
             document.querySelectorAll('.delete-acerto-btn').forEach(btn => btn.addEventListener('click', async e => {
                 const id = e.target.dataset.id;
-                if (confirm('Tem a certeza?')) {
+                if (confirm('Tem a certeza que deseja excluir este acerto?')) {
                     const acerto = state.acertos.find(a => a.id === id);
                     if (acerto.anexo) await deleteObject(ref(storage, acerto.anexo.path));
                     await deleteDoc(doc(db, "acertos", id));
@@ -355,12 +360,14 @@
         function renderHistoryModal() {
             const content = document.getElementById('history-content');
             if(!content) return;
-            content.innerHTML = state.history.map(log => `
-                <div class="p-2 border-b">
+            content.innerHTML = state.history.map(log => {
+                 const detailsText = log.details.desc ? `${log.details.desc} - ${log.details.valor}` : (log.details.valor || '');
+                 return `<div class="p-2 border-b">
                     <p><strong>${log.action}</strong> por ${log.user}</p>
                     <p class="text-xs text-slate-500">${log.timestamp ? new Date(log.timestamp.toDate()).toLocaleString('pt-BR') : ''}</p>
-                    ${log.details.desc ? `<p class="text-xs">${log.details.desc} - ${log.details.valor}</p>` : ''}
-                </div>`).join('');
+                    ${detailsText ? `<p class="text-xs text-gray-700">${detailsText}</p>` : ''}
+                </div>`
+            }).join('');
         }
         
         async function handleFileUpload(file, path) {
@@ -382,8 +389,8 @@
         function addEventListeners() {
             document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
             
-            document.getElementById('participant-a').addEventListener('change', async (e) => await setDoc(configDoc, { ...state.config, a: e.target.value }, { merge: true }));
-            document.getElementById('participant-b').addEventListener('change', async (e) => await setDoc(configDoc, { ...state.config, b: e.target.value }, { merge: true }));
+            document.getElementById('participant-a').addEventListener('change', async e => await setDoc(configDocRef, { a: e.target.value }, { merge: true }));
+            document.getElementById('participant-b').addEventListener('change', async e => await setDoc(configDocRef, { b: e.target.value }, { merge: true }));
 
             const lancamentoForm = document.getElementById('lancamento-form');
             lancamentoForm.addEventListener('submit', async (e) => {
@@ -395,6 +402,7 @@
                     pA: parseFloat(e.target.pA.value), pB: parseFloat(e.target.pB.value), anexo,
                     createdBy: currentUser.displayName, createdAt: serverTimestamp()
                 };
+                if(lancamento.valor <= 0) return alert('O valor deve ser positivo.');
                 await addDoc(lancamentosCol, lancamento);
                 await logEvent('Lançamento Adicionado', { desc: lancamento.desc, valor: fmt(lancamento.valor) });
                 lancamentoForm.reset();
@@ -404,12 +412,11 @@
             const acertoForm = document.getElementById('acerto-form');
             acertoForm.addEventListener('submit', async e => {
                 e.preventDefault();
+                const valor = parseNum(e.target['valor-acerto'].value);
                 if (e.target.de.value === e.target.para.value) return alert('Pagador e recebedor devem ser diferentes.');
+                if (valor <= 0) return alert('O valor do acerto deve ser positivo.');
                 const anexo = await handleFileUpload(e.target['anexo-acerto'].files[0], 'acertos');
-                const acerto = {
-                    dt: serverTimestamp(), de: e.target.de.value, para: e.target.para.value,
-                    valor: parseNum(e.target['valor-acerto'].value), anexo
-                };
+                const acerto = { dt: serverTimestamp(), de: e.target.de.value, para: e.target.para.value, valor, anexo };
                 await addDoc(acertosCol, acerto);
                 await logEvent('Acerto Registado', { de: acerto.de, para: acerto.para, valor: fmt(acerto.valor) });
                 acertoForm.reset();
@@ -417,30 +424,45 @@
 
             document.getElementById('filter-cc').addEventListener('change', rerender);
             
-            // Modais
             const quickAddModal = document.getElementById('quick-add-modal');
-            document.getElementById('quick-add-btn').addEventListener('click', () => quickAddModal.style.display = 'flex');
-            document.getElementById('quick-add-cancel').addEventListener('click', () => quickAddModal.style.display = 'none');
+            document.getElementById('quick-add-btn').addEventListener('click', () => quickAddModal.classList.remove('hidden'));
+            document.getElementById('quick-add-cancel').addEventListener('click', () => quickAddModal.classList.add('hidden'));
+            document.getElementById('quick-add-form').addEventListener('submit', async e => {
+                e.preventDefault();
+                const valor = parseNum(e.target['quick-valor'].value);
+                if (valor <= 0) return alert('O valor deve ser positivo.');
+                const lancamento = {
+                    dt: new Date().toISOString().split('T')[0], desc: e.target['quick-desc'].value, cat: 'Outros', cc: 'Outros',
+                    valor, pagador: e.target['quick-pagador'].value, pA: 0.5, pB: 0.5, anexo: null,
+                    createdBy: currentUser.displayName, createdAt: serverTimestamp()
+                };
+                await addDoc(lancamentosCol, lancamento);
+                await logEvent('Lanç. Rápido Adicionado', { desc: lancamento.desc, valor: fmt(lancamento.valor) });
+                e.target.reset();
+                quickAddModal.classList.add('hidden');
+            });
             
             const budgetModal = document.getElementById('budget-modal');
             document.getElementById('manage-budget-btn').addEventListener('click', () => {
                 const fields = document.getElementById('budget-fields');
-                fields.innerHTML = PREDEFINED_LISTS.centrosDeCusto.map(cc => `<div><label>${cc}</label><input name="${cc}" value="${state.config.budget.cc[cc] || ''}"></div>`).join('');
-                budgetModal.style.display = 'flex';
+                const budget = state.config.budget || { cc: {} };
+                fields.innerHTML = PREDEFINED_LISTS.centrosDeCusto.map(cc => `<div><label class="block text-sm font-medium text-slate-700">${cc}</label><input type="text" name="${cc}" value="${budget.cc[cc] || ''}" class="mt-1 w-full border p-2 rounded-md" placeholder="R$ 0,00"></div>`).join('');
+                budgetModal.classList.remove('hidden');
             });
-            document.getElementById('budget-cancel').addEventListener('click', () => budgetModal.style.display = 'none');
+            document.getElementById('budget-cancel').addEventListener('click', () => budgetModal.classList.add('hidden'));
             document.getElementById('budget-save').addEventListener('click', async () => {
                 const newBudget = { cc: {} };
                 document.querySelectorAll('#budget-fields input').forEach(i => newBudget.cc[i.name] = parseNum(i.value));
-                await setDoc(configDoc, { ...state.config, budget: newBudget }, { merge: true });
+                await setDoc(configDocRef, { budget: newBudget }, { merge: true });
                 await logEvent('Orçamento Atualizado');
-                budgetModal.style.display = 'none';
+                budgetModal.classList.add('hidden');
             });
 
             const historyModal = document.getElementById('history-modal');
-            document.getElementById('history-btn').addEventListener('click', () => historyModal.style.display = 'flex');
-            document.getElementById('history-close').addEventListener('click', () => historyModal.style.display = 'none');
+            document.getElementById('history-btn').addEventListener('click', () => historyModal.classList.remove('hidden'));
+            document.getElementById('history-close').addEventListener('click', () => historyModal.classList.add('hidden'));
         }
     </script>
 </body>
 </html>
+
