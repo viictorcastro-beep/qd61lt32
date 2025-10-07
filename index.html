@@ -68,7 +68,7 @@
         const loadingOverlay = document.getElementById('loading-overlay');
 
         let currentUser = null;
-        let state = { lancamentos: [], acertos: [], config: null, history: [] };
+        let state = { lancamentos: [], acertos: [], config: { a: 'Sócio A', b: 'Sócio B', budget: { cc: {} } }, history: [] };
         let listeners = [];
         let cachedCalculations = {};
         
@@ -151,14 +151,14 @@
                         </div>
                         <aside class="space-y-8">
                             <section><h2 class="text-2xl font-bold mb-4 text-slate-800">Resumo Financeiro</h2><div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div class="bg-white p-4 rounded-2xl shadow-md text-center"><h3 class="text-sm font-semibold text-slate-500">Total Geral</h3><p id="kpi-total" class="text-2xl font-bold"></p></div><div class="bg-yellow-100 border border-yellow-300 p-4 rounded-2xl shadow-md text-center"><h3 class="text-sm font-semibold text-slate-600">Equalização</h3><p id="kpi-equalizacao" class="text-xl font-bold"></p></div></div></section>
-                            <section class="bg-white p-6 rounded-2xl shadow-lg"><h2 class="text-xl font-bold mb-4">Acertos</h2><form id="acerto-form" class="space-y-4"><div class="grid grid-cols-2 gap-4"><div><label for="de">De:</label><select id="de"></select></div><div><label for="para">Para:</label><select id="para"></select></div></div><div><label for="valor-acerto">Valor:</label><input type="text" id="valor-acerto" required></div><div><label for="anexo-acerto">Anexo:</label><input type="file" id="anexo-acerto"></div><div class="flex gap-2"><button type="submit">Registrar</button><button type="button" id="sugestao-btn">Sugestão</button></div></form><div class="mt-6"><h3 class="font-semibold mb-2">Histórico de Acertos</h3><ul id="acertos-list" class="space-y-2 text-sm"></ul></div></section>
+                            <section class="bg-white p-6 rounded-2xl shadow-lg"><h2 class="text-xl font-bold mb-4">Acertos</h2><form id="acerto-form" class="space-y-4"><div class="grid grid-cols-2 gap-4"><div><label for="de">De:</label><select id="de" class="w-full border p-2 rounded-md"></select></div><div><label for="para">Para:</label><select id="para" class="w-full border p-2 rounded-md"></select></div></div><div><label for="valor-acerto">Valor:</label><input type="text" id="valor-acerto" class="w-full border p-2 rounded-md" required></div><div><label for="anexo-acerto">Anexo:</label><input type="file" id="anexo-acerto" class="w-full border p-2 rounded-md"></div><div class="flex gap-2"><button type="submit" class="w-full bg-teal-600 text-white py-2 rounded-md">Registar</button><button type="button" id="sugestao-btn" class="w-full bg-gray-500 text-white py-2 rounded-md">Sugestão</button></div></form><div class="mt-6"><h3 class="font-semibold mb-2">Histórico de Acertos</h3><ul id="acertos-list" class="space-y-2 text-sm"></ul></div></section>
                             <section class="bg-white p-6 rounded-2xl shadow-lg"><h2 class="text-xl font-bold mb-4">Detalhes por Sócio</h2><div id="resumo-socios" class="space-y-4"></div></section>
                         </aside>
                     </main>
                 </div>
-                <div id="quick-add-modal" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4 hidden z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-md"><h2 class="text-xl font-bold mb-4">Lançamento Rápido</h2><form id="quick-add-form"><div class="space-y-4"><input type="text" id="quick-desc" placeholder="Descrição" required><input type="text" id="quick-valor" placeholder="Valor" required><select id="quick-pagador"></select></div><div class="flex gap-4 mt-6"><button type="submit">Adicionar</button><button type="button" id="quick-add-cancel">Cancelar</button></div></form></div></div>
-                <div id="budget-modal" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4 hidden z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-2xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Gerir Orçamento</h2><form id="budget-form" class="flex-grow overflow-y-auto pr-2"><div id="budget-fields" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div></form><div class="flex gap-4 mt-6 pt-4 border-t"><button type="button" id="budget-save">Salvar</button><button type="button" id="budget-cancel">Cancelar</button></div></div></div>
-                <div id="history-modal" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4 hidden z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-3xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Histórico de Eventos</h2><div id="history-content" class="flex-grow overflow-y-auto pr-2 text-sm"></div><div class="mt-6 pt-4 border-t"><button type="button" id="history-close" class="w-full">Fechar</button></div></div></div>
+                <div id="quick-add-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-md"><h2 class="text-xl font-bold mb-4">Lançamento Rápido</h2><form id="quick-add-form"><div class="space-y-4"><input type="text" id="quick-desc" class="w-full border p-2 rounded-md" placeholder="Descrição" required><input type="text" id="quick-valor" class="w-full border p-2 rounded-md" placeholder="Valor" required><select id="quick-pagador" class="w-full border p-2 rounded-md"></select></div><div class="flex gap-4 mt-6"><button type="submit" class="w-full bg-cyan-500 text-white py-2 rounded-md">Adicionar</button><button type="button" id="quick-add-cancel" class="w-full bg-gray-300 py-2 rounded-md">Cancelar</button></div></form></div></div>
+                <div id="budget-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-2xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Gerir Orçamento</h2><form id="budget-form" class="flex-grow overflow-y-auto pr-2"><div id="budget-fields" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div></form><div class="flex gap-4 mt-6 pt-4 border-t"><button type="button" id="budget-save" class="w-full bg-sky-600 text-white py-2 rounded-md">Salvar</button><button type="button" id="budget-cancel" class="w-full bg-gray-300 py-2 rounded-md">Cancelar</button></div></div></div>
+                <div id="history-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-3xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Histórico de Eventos</h2><div id="history-content" class="flex-grow overflow-y-auto pr-2 text-sm"></div><div class="mt-6 pt-4 border-t"><button type="button" id="history-close" class="w-full bg-gray-300 py-2 rounded-md">Fechar</button></div></div></div>
             `;
             
             addEventListeners();
@@ -175,12 +175,10 @@
         function setupRealtimeListeners() {
             listeners.forEach(unsubscribe => unsubscribe());
             listeners = [];
-
             const unsubLancamentos = onSnapshot(query(lancamentosCol, orderBy("dt", "desc")), snap => { state.lancamentos = snap.docs.map(d => ({...d.data(), id: d.id })); rerender(); });
             const unsubAcertos = onSnapshot(query(acertosCol, orderBy("dt", "desc")), snap => { state.acertos = snap.docs.map(d => ({...d.data(), id: d.id })); rerender(); });
             const unsubConfig = onSnapshot(configDoc, doc => { state.config = doc.exists() ? doc.data() : { a: 'Sócio A', b: 'Sócio B', budget: { cc: {} } }; rerender(); });
             const unsubHistory = onSnapshot(query(historyCol, orderBy("timestamp", "desc")), snap => { state.history = snap.docs.map(d => d.data()); renderHistoryModal(); });
-            
             listeners.push(unsubLancamentos, unsubAcertos, unsubConfig, unsubHistory);
         }
         
@@ -192,8 +190,8 @@
             const totalGeral = lancamentos.reduce((s, l) => s + l.valor, 0);
             const pagoPorA = lancamentos.filter(l => l.pagador === a).reduce((s, l) => s + l.valor, 0);
             const pagoPorB = lancamentos.filter(l => l.pagador === b).reduce((s, l) => s + l.valor, 0);
-            const devidoPorA = lancamentos.reduce((s, l) => s + (l.valor * l.pA), 0);
-            const devidoPorB = lancamentos.reduce((s, l) => s + (l.valor * l.pB), 0);
+            const devidoPorA = lancamentos.reduce((s, l) => s + (l.valor * (l.pA || 0.5)), 0);
+            const devidoPorB = lancamentos.reduce((s, l) => s + (l.valor * (l.pB || 0.5)), 0);
             
             const acertosRecebidosA = acertos.filter(ac => ac.para === a).reduce((s, ac) => s + ac.valor, 0);
             const acertosPagosA = acertos.filter(ac => ac.de === a).reduce((s, ac) => s + ac.valor, 0);
@@ -218,7 +216,6 @@
         function rerender() {
             if (!state.config || !document.getElementById('app')) return;
             compute();
-            const { totalGeral, pagoPorA, pagoPorB, devidoPorA, devidoPorB, saldoPosAcertosA, saldoPosAcertosB, equalizacao, realizadoPorCC } = cachedCalculations;
             const { a, b, budget } = state.config;
             
             document.getElementById('participant-a').value = a;
@@ -227,38 +224,156 @@
             document.getElementById('label-pb').textContent = `${b} (%):`;
             
             populateSelects();
-
-            document.getElementById('kpi-total').textContent = fmt(totalGeral);
-            document.getElementById('kpi-equalizacao').textContent = equalizacao.texto;
-            
-            renderDashboard(realizadoPorCC, budget);
-            renderBalanca(saldoPosAcertosA, a, b);
+            renderDashboard();
+            renderBalanca();
             renderLancamentos();
             renderAcertos();
-            renderResumoSocios(a, b, pagoPorA, devidoPorA, saldoPosAcertosA, pagoPorB, devidoPorB, saldoPosAcertosB);
+            renderResumoSocios();
+            document.getElementById('kpi-total').textContent = fmt(cachedCalculations.totalGeral);
+            document.getElementById('kpi-equalizacao').textContent = cachedCalculations.equalizacao.texto;
         }
         
-        // ... (Implementação completa de todas as funções de renderização, modais e helpers)
-        function populateSelects() { /* ... */ }
-        function renderDashboard(realizado, budget) { /* ... */ }
-        function renderBalanca(saldo, a, b) { /* ... */ }
-        function renderLancamentos() { /* ... */ }
-        function renderAcertos() { /* ... */ }
-        function renderResumoSocios(a, b, pA, dA, sA, pB, dB, sB) { /* ... */ }
-        function renderHistoryModal() { /* ... */ }
+        function populateSelects() {
+            const { a, b } = state.config;
+            const pagadores = [a, b];
+            const createOptions = arr => arr.map(item => `<option value="${item}">${item}</option>`).join('');
+            
+            ['cat', 'cc', 'pagador', 'de', 'para', 'quick-pagador', 'filter-cc'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    if (id === 'cat') el.innerHTML = createOptions(PREDEFINED_LISTS.categorias);
+                    else if (id === 'cc' || id === 'filter-cc') {
+                        const options = id === 'filter-cc' ? ['Todos', ...PREDEFINED_LISTS.centrosDeCusto] : PREDEFINED_LISTS.centrosDeCusto;
+                        el.innerHTML = createOptions(options);
+                    }
+                    else if (['pagador', 'de', 'para', 'quick-pagador'].includes(id)) el.innerHTML = createOptions(pagadores);
+                }
+            });
+        }
 
+        function renderDashboard() {
+            const budget = state.config.budget || { cc: {} };
+            const grid = document.getElementById('dashboard-grid');
+            grid.innerHTML = PREDEFINED_LISTS.centrosDeCusto.map(cc => {
+                const orcado = budget.cc[cc] || 0;
+                const realizado = cachedCalculations.realizadoPorCC[cc] || 0;
+                const saldo = orcado - realizado;
+                const percent = orcado > 0 ? (realizado / orcado) * 100 : 0;
+                let barColor = 'bg-green-500';
+                if (percent > 80 && percent <= 100) barColor = 'bg-yellow-500';
+                if (percent > 100) barColor = 'bg-red-500';
+                return `<div class="bg-white p-4 rounded-2xl shadow-md">
+                    <h4 class="font-bold">${cc}</h4>
+                    <div class="text-sm mt-2 space-y-1">
+                        <p class="flex justify-between"><span>Orçado:</span> <span>${fmt(orcado)}</span></p>
+                        <p class="flex justify-between"><span>Realizado:</span> <span class="font-semibold">${fmt(realizado)}</span></p>
+                        <p class="flex justify-between"><span>Saldo:</span> <span class="${saldo < 0 ? 'text-red-600' : ''}">${fmt(saldo)}</span></p>
+                    </div>
+                    <div class="w-full progress-bar-bg rounded-full h-2.5 mt-3"><div class="${barColor} h-2.5 rounded-full" style="width: ${Math.min(percent, 100)}%"></div></div>
+                </div>`;
+            }).join('');
+        }
+        
+        function renderBalanca() {
+             const { saldoPosAcertosA } = cachedCalculations;
+            const { a, b } = state.config;
+            const card = document.getElementById('balanca-acerto-card');
+            const content = document.getElementById('balanca-content');
+            if (Math.abs(saldoPosAcertosA) < 0.01) {
+                card.className = 'p-6 rounded-2xl shadow-lg text-center bg-green-100 border-green-300';
+                content.innerHTML = `<p class="text-2xl font-bold text-green-800">Tudo certo!</p><p>As contas estão zeradas.</p>`;
+            } else {
+                card.className = 'p-6 rounded-2xl shadow-lg text-center bg-blue-100 border-blue-300';
+                const devedor = saldoPosAcertosA < 0 ? a : b;
+                const credor = saldoPosAcertosA < 0 ? b : a;
+                const valor = Math.abs(saldoPosAcertosA);
+                content.innerHTML = `<p>Para zerar as contas:</p><p class="text-2xl font-bold my-2">${devedor} → ${credor}</p><p class="text-3xl font-bold">${fmt(valor)}</p>`;
+            }
+        }
+        
+        function renderLancamentos() {
+            const tbody = document.getElementById('lancamentos-table-body');
+            const filter = document.getElementById('filter-cc').value;
+            const filtered = state.lancamentos.filter(l => filter === 'Todos' || l.cc === filter);
+            tbody.innerHTML = filtered.map(l => `
+                <tr class="border-b">
+                    <td class="p-2">${l.dt}</td>
+                    <td class="p-2">${l.desc}</td>
+                    <td class="p-2">${fmt(l.valor)}</td>
+                    <td class="p-2">${l.pagador}</td>
+                    <td class="p-2">${l.anexo ? `<a href="${l.anexo.url}" target="_blank" class="text-blue-600">Ver</a>` : 'Não'}</td>
+                    <td class="p-2"><button data-id="${l.id}" class="delete-lancamento-btn text-red-500">X</button></td>
+                </tr>
+            `).join('');
+            document.querySelectorAll('.delete-lancamento-btn').forEach(btn => btn.addEventListener('click', async e => {
+                const id = e.target.dataset.id;
+                if (confirm('Tem a certeza?')) {
+                    const lancamento = state.lancamentos.find(l => l.id === id);
+                    if (lancamento.anexo) await deleteObject(ref(storage, lancamento.anexo.path));
+                    await deleteDoc(doc(db, "lancamentos", id));
+                    await logEvent('Lançamento Excluído', { desc: lancamento.desc });
+                }
+            }));
+        }
+
+        function renderAcertos() {
+            const list = document.getElementById('acertos-list');
+            list.innerHTML = state.acertos.map(a => `
+                <li class="flex justify-between items-center p-2 bg-slate-100 rounded-md">
+                    <span>${new Date(a.dt.toDate()).toLocaleDateString()}: <strong>${a.de}</strong> → <strong>${a.para}</strong> - ${fmt(a.valor)} ${a.anexo ? `<a href="${a.anexo.url}" target="_blank" class="text-blue-600">(anexo)</a>` : ''}</span>
+                    <button data-id="${a.id}" class="delete-acerto-btn text-red-500 ml-4">X</button>
+                </li>`).join('');
+            document.querySelectorAll('.delete-acerto-btn').forEach(btn => btn.addEventListener('click', async e => {
+                const id = e.target.dataset.id;
+                if (confirm('Tem a certeza?')) {
+                    const acerto = state.acertos.find(a => a.id === id);
+                    if (acerto.anexo) await deleteObject(ref(storage, acerto.anexo.path));
+                    await deleteDoc(doc(db, "acertos", id));
+                    await logEvent('Acerto Excluído', { valor: fmt(acerto.valor) });
+                }
+            }));
+        }
+
+        function renderResumoSocios() {
+            const { a, b } = state.config;
+            const { pagoPorA, devidoPorA, saldoPosAcertosA, pagoPorB, devidoPorB, saldoPosAcertosB } = cachedCalculations;
+            const container = document.getElementById('resumo-socios');
+            container.innerHTML = [
+                { nome: a, pago: pagoPorA, devido: devidoPorA, saldo: saldoPosAcertosA },
+                { nome: b, pago: pagoPorB, devido: devidoPorB, saldo: saldoPosAcertosB }
+            ].map(s => `
+                <div>
+                    <h3 class="font-semibold text-lg">${s.nome}</h3>
+                    <div class="text-sm space-y-1 mt-1">
+                        <p class="flex justify-between"><span>Pago:</span> <span>${fmt(s.pago)}</span></p>
+                        <p class="flex justify-between"><span>Devido:</span> <span>${fmt(s.devido)}</span></p>
+                        <hr class="my-1"><p class="flex justify-between font-bold"><span>Saldo:</span> <span class="${s.saldo < 0 ? 'text-red-600' : 'text-green-600'}">${fmt(s.saldo)}</span></p>
+                    </div>
+                </div>`).join('');
+        }
+        
+        function renderHistoryModal() {
+            const content = document.getElementById('history-content');
+            if(!content) return;
+            content.innerHTML = state.history.map(log => `
+                <div class="p-2 border-b">
+                    <p><strong>${log.action}</strong> por ${log.user}</p>
+                    <p class="text-xs text-slate-500">${log.timestamp ? new Date(log.timestamp.toDate()).toLocaleString('pt-BR') : ''}</p>
+                    ${log.details.desc ? `<p class="text-xs">${log.details.desc} - ${log.details.valor}</p>` : ''}
+                </div>`).join('');
+        }
+        
         async function handleFileUpload(file, path) {
             if (!file) return null;
             loadingOverlay.classList.remove('hidden');
             try {
                 const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
                 const snapshot = await uploadBytes(storageRef, file);
-                const downloadURL = await getDownloadURL(snapshot.ref);
-                return { url: downloadURL, path: snapshot.ref.fullPath, name: file.name };
+                const url = await getDownloadURL(snapshot.ref);
+                return { url, path: snapshot.ref.fullPath, name: file.name };
             } catch (error) {
                 console.error("Upload Error:", error);
-                alert("Falha no upload do anexo.");
-                return null;
+                alert("Falha no upload do anexo."); return null;
             } finally {
                 loadingOverlay.classList.add('hidden');
             }
@@ -267,31 +382,64 @@
         function addEventListeners() {
             document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
             
+            document.getElementById('participant-a').addEventListener('change', async (e) => await setDoc(configDoc, { ...state.config, a: e.target.value }, { merge: true }));
+            document.getElementById('participant-b').addEventListener('change', async (e) => await setDoc(configDoc, { ...state.config, b: e.target.value }, { merge: true }));
+
             const lancamentoForm = document.getElementById('lancamento-form');
             lancamentoForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const anexoFile = e.target.anexo.files[0];
-                const anexoData = await handleFileUpload(anexoFile, 'lancamentos');
-                
-                const newLancamento = {
-                    dt: e.target.dt.value,
-                    desc: e.target.desc.value,
-                    cat: e.target.cat.value,
-                    cc: e.target.cc.value,
-                    valor: parseNum(e.target.valor.value),
-                    pagador: e.target.pagador.value,
-                    pA: parseFloat(e.target.pA.value),
-                    pB: parseFloat(e.target.pB.value),
-                    anexo: anexoData,
-                    createdBy: currentUser.displayName,
-                    createdAt: serverTimestamp()
+                const anexo = await handleFileUpload(e.target.anexo.files[0], 'lancamentos');
+                const lancamento = {
+                    dt: e.target.dt.value, desc: e.target.desc.value, cat: e.target.cat.value, cc: e.target.cc.value,
+                    valor: parseNum(e.target.valor.value), pagador: e.target.pagador.value,
+                    pA: parseFloat(e.target.pA.value), pB: parseFloat(e.target.pB.value), anexo,
+                    createdBy: currentUser.displayName, createdAt: serverTimestamp()
                 };
-                
-                await addDoc(lancamentosCol, newLancamento);
-                await logEvent('Lançamento Adicionado', { desc: newLancamento.desc, valor: fmt(newLancamento.valor) });
+                await addDoc(lancamentosCol, lancamento);
+                await logEvent('Lançamento Adicionado', { desc: lancamento.desc, valor: fmt(lancamento.valor) });
                 lancamentoForm.reset();
+                document.getElementById('dt').valueAsDate = new Date();
             });
-            // ... (adicionar todos os outros event listeners aqui)
+            
+            const acertoForm = document.getElementById('acerto-form');
+            acertoForm.addEventListener('submit', async e => {
+                e.preventDefault();
+                if (e.target.de.value === e.target.para.value) return alert('Pagador e recebedor devem ser diferentes.');
+                const anexo = await handleFileUpload(e.target['anexo-acerto'].files[0], 'acertos');
+                const acerto = {
+                    dt: serverTimestamp(), de: e.target.de.value, para: e.target.para.value,
+                    valor: parseNum(e.target['valor-acerto'].value), anexo
+                };
+                await addDoc(acertosCol, acerto);
+                await logEvent('Acerto Registado', { de: acerto.de, para: acerto.para, valor: fmt(acerto.valor) });
+                acertoForm.reset();
+            });
+
+            document.getElementById('filter-cc').addEventListener('change', rerender);
+            
+            // Modais
+            const quickAddModal = document.getElementById('quick-add-modal');
+            document.getElementById('quick-add-btn').addEventListener('click', () => quickAddModal.style.display = 'flex');
+            document.getElementById('quick-add-cancel').addEventListener('click', () => quickAddModal.style.display = 'none');
+            
+            const budgetModal = document.getElementById('budget-modal');
+            document.getElementById('manage-budget-btn').addEventListener('click', () => {
+                const fields = document.getElementById('budget-fields');
+                fields.innerHTML = PREDEFINED_LISTS.centrosDeCusto.map(cc => `<div><label>${cc}</label><input name="${cc}" value="${state.config.budget.cc[cc] || ''}"></div>`).join('');
+                budgetModal.style.display = 'flex';
+            });
+            document.getElementById('budget-cancel').addEventListener('click', () => budgetModal.style.display = 'none');
+            document.getElementById('budget-save').addEventListener('click', async () => {
+                const newBudget = { cc: {} };
+                document.querySelectorAll('#budget-fields input').forEach(i => newBudget.cc[i.name] = parseNum(i.value));
+                await setDoc(configDoc, { ...state.config, budget: newBudget }, { merge: true });
+                await logEvent('Orçamento Atualizado');
+                budgetModal.style.display = 'none';
+            });
+
+            const historyModal = document.getElementById('history-modal');
+            document.getElementById('history-btn').addEventListener('click', () => historyModal.style.display = 'flex');
+            document.getElementById('history-close').addEventListener('click', () => historyModal.style.display = 'none');
         }
     </script>
 </body>
