@@ -23,6 +23,8 @@
         .modal-overlay { transition: opacity 0.2s ease-in-out; }
         .progress-bar-bg { background-color: #e5e7eb; }
         .progress-bar { transition: width 0.3s ease-in-out; }
+        .loader { border: 4px solid #f3f3f3; border-radius: 50%; border-top: 4px solid #3498db; width: 40px; height: 40px; animation: spin 2s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="antialiased text-slate-800">
@@ -58,6 +60,7 @@
                         <input type="text" id="participant-b" class="px-2 py-1 font-bold border rounded-md w-32">
                     </div>
                     <div class="flex items-center gap-2 flex-wrap">
+                        <button id="history-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Histórico</button>
                         <button id="manage-budget-btn" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Orçamento</button>
                         <button id="export-pdf-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Exportar PDF</button>
                     </div>
@@ -96,6 +99,7 @@
         </div>
         <div id="quick-add-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-md"><h2 class="text-xl font-bold mb-4">Lançamento Rápido</h2><form id="quick-add-form"><div class="space-y-4"><input type="text" id="quick-desc" class="w-full border p-2 rounded-md" placeholder="Descrição" required><input type="text" id="quick-valor" class="w-full border p-2 rounded-md" placeholder="Valor" required><select id="quick-pagador" class="w-full border p-2 rounded-md"></select></div><div class="flex gap-4 mt-6"><button type="submit" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 rounded-md">Adicionar</button><button type="button" id="quick-add-cancel" class="w-full bg-gray-300 hover:bg-gray-400 font-bold py-2 rounded-md">Cancelar</button></div></form></div></div>
         <div id="budget-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-2xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Gerir Orçamento</h2><form id="budget-form" class="flex-grow overflow-y-auto pr-2"><div id="budget-fields" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div></form><div class="flex gap-4 mt-6 pt-4 border-t"><button type="button" id="budget-save" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 rounded-md">Salvar</button><button type="button" id="budget-cancel" class="w-full bg-gray-300 hover:bg-gray-400 font-bold py-2 rounded-md">Cancelar</button></div></div></div>
+        <div id="history-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl shadow-lg p-6 w-full max-w-3xl max-h-[90vh] flex flex-col"><h2 class="text-xl font-bold mb-4">Histórico de Eventos</h2><div id="history-content" class="flex-grow overflow-y-auto pr-2 text-sm"></div><div class="mt-6 pt-4 border-t"><button type="button" id="history-close" class="w-full bg-gray-300 hover:bg-gray-400 font-bold py-2 rounded-md">Fechar</button></div></div></div>
     </div>
     <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-[100] hidden"><div class="loader"></div></div>
     
@@ -124,13 +128,14 @@
         const lancamentosCol = collection(db, "lancamentos");
         const acertosCol = collection(db, "acertos");
         const configDocRef = doc(db, "config", "main");
+        const historyCol = collection(db, "history");
 
         const loginScreen = document.getElementById('login-screen');
         const appWrapper = document.getElementById('app-wrapper');
         const loadingOverlay = document.getElementById('loading-overlay');
 
         let currentUser = null;
-        let state = { lancamentos: [], acertos: [], config: null };
+        let state = { lancamentos: [], acertos: [], config: null, history: [] };
         let listeners = [];
         let cachedCalculations = {};
         
@@ -163,7 +168,7 @@
                 addEventListeners();
                 setupRealtimeListeners();
             } else {
-                if (user) signOut(auth); // Força o logout se o email não for autorizado
+                if (user) signOut(auth);
                 currentUser = null;
                 appWrapper.classList.add('hidden');
                 loginScreen.classList.remove('hidden');
@@ -172,26 +177,35 @@
             }
         });
 
+        async function logEvent(action, details = {}) {
+            if (!currentUser) return;
+            try {
+                await addDoc(historyCol, { action, details, user: currentUser.displayName, email: currentUser.email, timestamp: serverTimestamp() });
+            } catch (error) { console.error("Log Error:", error); }
+        }
+        
         function setupRealtimeListeners() {
             listeners.forEach(unsubscribe => unsubscribe());
             listeners = [];
-            let configLoaded = false;
+            let dataLoaded = { lancamentos: false, acertos: false, config: false };
 
             const onAllDataLoaded = () => {
-                if (!configLoaded) return;
-                loadingOverlay.classList.add('hidden');
-                rerender();
+                if (Object.values(dataLoaded).every(Boolean)) {
+                    loadingOverlay.classList.add('hidden');
+                    rerender();
+                }
             };
 
-            const unsubLancamentos = onSnapshot(query(lancamentosCol, orderBy("dt", "desc")), snap => { state.lancamentos = snap.docs.map(d => ({...d.data(), id: d.id })); onAllDataLoaded(); });
-            const unsubAcertos = onSnapshot(query(acertosCol, orderBy("dt", "desc")), snap => { state.acertos = snap.docs.map(d => ({...d.data(), id: d.id })); onAllDataLoaded(); });
+            const unsubLancamentos = onSnapshot(query(lancamentosCol, orderBy("dt", "desc")), snap => { state.lancamentos = snap.docs.map(d => ({...d.data(), id: d.id })); dataLoaded.lancamentos = true; onAllDataLoaded(); });
+            const unsubAcertos = onSnapshot(query(acertosCol, orderBy("dt", "desc")), snap => { state.acertos = snap.docs.map(d => ({...d.data(), id: d.id })); dataLoaded.acertos = true; onAllDataLoaded(); });
             const unsubConfig = onSnapshot(configDocRef, doc => { 
                 state.config = doc.exists() ? doc.data() : { a: 'Sócio A', b: 'Sócio B', budget: { cc: {} } };
-                configLoaded = true;
+                dataLoaded.config = true;
                 onAllDataLoaded();
             });
+            const unsubHistory = onSnapshot(query(historyCol, orderBy("timestamp", "desc")), snap => { state.history = snap.docs.map(d => d.data()); renderHistoryModal(); });
             
-            listeners.push(unsubLancamentos, unsubAcertos, unsubConfig);
+            listeners.push(unsubLancamentos, unsubAcertos, unsubConfig, unsubHistory);
         }
         
         function compute() {
@@ -262,7 +276,7 @@
                         el.innerHTML = createOptions(options);
                     }
                     else if (['pagador', 'de', 'para', 'quick-pagador'].includes(id)) el.innerHTML = createOptions(pagadores);
-                    el.value = currentValue;
+                    if (currentValue) el.value = currentValue;
                 }
             });
         }
@@ -351,6 +365,19 @@
                     </div>
                 </div>`).join('');
         }
+
+        function renderHistoryModal() {
+            const content = document.getElementById('history-content');
+            if(!content) return;
+            content.innerHTML = state.history.map(log => {
+                 const detailsText = log.details.desc ? `${log.details.desc} - ${log.details.valor}` : (log.details.valor || '');
+                 return `<div class="p-2 border-b">
+                    <p><strong>${log.action}</strong> por ${log.user}</p>
+                    <p class="text-xs text-slate-500">${log.timestamp ? new Date(log.timestamp.toDate()).toLocaleString('pt-BR') : ''}</p>
+                    ${detailsText ? `<p class="text-xs text-gray-700">${detailsText}</p>` : ''}
+                </div>`
+            }).join('');
+        }
         
         async function handleFileUpload(file, path) {
             if (!file) return null;
@@ -377,6 +404,7 @@
                         const lancamento = state.lancamentos.find(l => l.id === id);
                         if (lancamento.anexo) await deleteObject(ref(storage, lancamento.anexo.path));
                         await deleteDoc(doc(db, "lancamentos", id));
+                        await logEvent('Lançamento Excluído', { desc: lancamento.desc, valor: fmt(lancamento.valor) });
                     }
                 }
                 if (e.target.matches('.delete-acerto-btn')) {
@@ -385,24 +413,29 @@
                         const acerto = state.acertos.find(a => a.id === id);
                         if (acerto.anexo) await deleteObject(ref(storage, acerto.anexo.path));
                         await deleteDoc(doc(db, "acertos", id));
+                        await logEvent('Acerto Excluído', { valor: fmt(acerto.valor) });
                     }
                 }
                 if (e.target.id === 'quick-add-btn') document.getElementById('quick-add-modal').classList.remove('hidden');
-                if (e.target.id === 'quick-add-cancel' || e.target.closest('#quick-add-modal') && !e.target.closest('.bg-white')) document.getElementById('quick-add-modal').classList.add('hidden');
+                if (e.target.id === 'quick-add-cancel' || (e.target.id === 'quick-add-modal' && !e.target.closest('.bg-white'))) document.getElementById('quick-add-modal').classList.add('hidden');
+                
                 if (e.target.id === 'manage-budget-btn') {
                     const fields = document.getElementById('budget-fields');
                     const budget = state.config.budget || { cc: {} };
                     fields.innerHTML = PREDEFINED_LISTS.centrosDeCusto.map(cc => `<div><label class="block text-sm font-medium text-slate-700">${cc}</label><input type="text" name="${cc}" value="${budget.cc[cc] || ''}" class="mt-1 w-full border p-2 rounded-md" placeholder="R$ 0,00"></div>`).join('');
                     document.getElementById('budget-modal').classList.remove('hidden');
                 }
-                if (e.target.id === 'budget-cancel' || e.target.closest('#budget-modal') && !e.target.closest('.bg-white')) document.getElementById('budget-modal').classList.add('hidden');
+                if (e.target.id === 'budget-cancel' || (e.target.id === 'budget-modal' && !e.target.closest('.bg-white'))) document.getElementById('budget-modal').classList.add('hidden');
                 if (e.target.id === 'budget-save') {
                     const newBudget = { cc: {} };
                     document.querySelectorAll('#budget-fields input').forEach(i => newBudget.cc[i.name] = parseNum(i.value));
                     await setDoc(configDocRef, { budget: newBudget }, { merge: true });
+                    await logEvent('Orçamento Atualizado');
                     document.getElementById('budget-modal').classList.add('hidden');
                 }
-                if (e.target.id === 'history-btn') alert('Funcionalidade de histórico a ser implementada.');
+                
+                if (e.target.id === 'history-btn') document.getElementById('history-modal').classList.remove('hidden');
+                if (e.target.id === 'history-close' || (e.target.id === 'history-modal' && !e.target.closest('.bg-white'))) document.getElementById('history-modal').classList.add('hidden');
             });
             
             document.getElementById('participant-a').addEventListener('change', async e => await setDoc(configDocRef, { a: e.target.value }, { merge: true }));
@@ -418,8 +451,10 @@
                     pA: parseFloat(form.pA.value), pB: parseFloat(form.pB.value), anexo,
                     createdBy: currentUser.displayName, createdAt: serverTimestamp()
                 };
+                if(!lancamento.dt) return alert('A data é obrigatória.');
                 if(lancamento.valor <= 0) return alert('O valor deve ser positivo.');
                 await addDoc(lancamentosCol, lancamento);
+                await logEvent('Lançamento Adicionado', { desc: lancamento.desc, valor: fmt(lancamento.valor) });
                 form.reset();
                 document.getElementById('dt').valueAsDate = new Date();
             });
@@ -433,6 +468,7 @@
                 const anexo = await handleFileUpload(form['anexo-acerto'].files[0], 'acertos');
                 const acerto = { dt: serverTimestamp(), de: form.de.value, para: form.para.value, valor, anexo };
                 await addDoc(acertosCol, acerto);
+                await logEvent('Acerto Registado', { de: acerto.de, para: acerto.para, valor: fmt(acerto.valor) });
                 form.reset();
             });
             
@@ -447,6 +483,7 @@
                     createdBy: currentUser.displayName, createdAt: serverTimestamp()
                 };
                 await addDoc(lancamentosCol, lancamento);
+                await logEvent('Lanç. Rápido Adicionado', { desc: lancamento.desc, valor: fmt(lancamento.valor) });
                 form.reset();
                 document.getElementById('quick-add-modal').classList.add('hidden');
             });
@@ -456,3 +493,4 @@
     </script>
 </body>
 </html>
+
