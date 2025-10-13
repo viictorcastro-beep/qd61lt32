@@ -5,14 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestor de Custos de Obra - V&G</title>
     
-    <!-- jsPDF for PDF Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
-    <!-- Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -24,7 +21,7 @@
         .progress-bar-bg { background-color: #e5e7eb; }
         .progress-bar { transition: width 0.3s ease-in-out; }
         .loader { border: 4px solid #f3f3f3; border-radius: 50%; border-top: 4px solid #3498db; width: 40px; height: 40px; animation: spin 2s linear infinite; }
-        .btn-loader { border: 2px solid #f3f3f3; border-radius: 50%; border-top: 2px solid #fff; width: 16px; height: 16px; animation: spin 1s linear infinite; }
+        .btn-loader { display: inline-block; border: 2px solid rgba(255,255,255,0.5); border-radius: 50%; border-top-color: #fff; width: 16px; height: 16px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -46,12 +43,12 @@
          <div id="app" class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
             <header class="mb-8">
                 <div class="flex flex-wrap justify-between items-center gap-4">
-                     <h1 id="main-title" class="text-3xl font-bold text-slate-900">Gestor de Custos de Obra</h1>
-                     <div id="user-info" class="flex items-center gap-4">
-                        <img id="user-photo" class="w-10 h-10 rounded-full">
-                        <span id="user-name" class="font-semibold"></span>
-                        <button id="logout-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Sair</button>
-                    </div>
+                      <h1 id="main-title" class="text-3xl font-bold text-slate-900">Gestor de Custos de Obra</h1>
+                      <div id="user-info" class="flex items-center gap-4">
+                          <img id="user-photo" class="w-10 h-10 rounded-full">
+                          <span id="user-name" class="font-semibold"></span>
+                          <button id="logout-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Sair</button>
+                      </div>
                 </div>
                  <div class="mt-4 flex flex-wrap justify-between items-center gap-4">
                     <div class="p-4 bg-slate-200 rounded-lg flex flex-wrap gap-4 items-center">
@@ -186,7 +183,7 @@
         function setupRealtimeListeners() {
             listeners.forEach(unsubscribe => unsubscribe());
             listeners = [];
-            let dataLoaded = { lancamentos: false, acertos: false, config: false };
+            let dataLoaded = { lancamentos: false, acertos: false, config: false, history: false };
 
             const onAllDataLoaded = () => {
                 if (Object.values(dataLoaded).every(Boolean)) {
@@ -195,14 +192,20 @@
                 }
             };
 
-            const unsubLancamentos = onSnapshot(query(lancamentosCol, orderBy("dt", "desc")), snap => { state.lancamentos = snap.docs.map(d => ({...d.data(), id: d.id })); dataLoaded.lancamentos = true; onAllDataLoaded(); });
-            const unsubAcertos = onSnapshot(query(acertosCol, orderBy("dt", "desc")), snap => { state.acertos = snap.docs.map(d => ({...d.data(), id: d.id })); dataLoaded.acertos = true; onAllDataLoaded(); });
+            const queryLancamentos = query(lancamentosCol, orderBy("dt", "desc"));
+            const unsubLancamentos = onSnapshot(queryLancamentos, snap => { state.lancamentos = snap.docs.map(d => ({...d.data(), id: d.id })); dataLoaded.lancamentos = true; onAllDataLoaded(); });
+            
+            const queryAcertos = query(acertosCol, orderBy("dt", "desc"));
+            const unsubAcertos = onSnapshot(queryAcertos, snap => { state.acertos = snap.docs.map(d => ({...d.data(), id: d.id })); dataLoaded.acertos = true; onAllDataLoaded(); });
+            
             const unsubConfig = onSnapshot(configDocRef, doc => { 
                 state.config = doc.exists() ? doc.data() : { a: 'Sócio A', b: 'Sócio B', budget: { cc: {} } };
                 dataLoaded.config = true;
                 onAllDataLoaded();
             });
-            const unsubHistory = onSnapshot(query(historyCol, orderBy("timestamp", "desc")), snap => { state.history = snap.docs.map(d => d.data()); renderHistoryModal(); });
+
+            const queryHistory = query(historyCol, orderBy("timestamp", "desc"));
+            const unsubHistory = onSnapshot(queryHistory, snap => { state.history = snap.docs.map(d => d.data()); if(!dataLoaded.history){ dataLoaded.history = true; onAllDataLoaded(); } else { renderHistoryModal(); } });
             
             listeners.push(unsubLancamentos, unsubAcertos, unsubConfig, unsubHistory);
         }
@@ -220,11 +223,13 @@
             
             const acertosRecebidosA = acertos.filter(ac => ac.para === a).reduce((s, ac) => s + (ac.valor || 0), 0);
             const acertosPagosA = acertos.filter(ac => ac.de === a).reduce((s, ac) => s + (ac.valor || 0), 0);
-            const saldoPosAcertosA = (pagoPorA - devidoPorA) + acertosRecebidosA - acertosPagosA;
+            // CORREÇÃO APLICADA AQUI: O valor recebido em acerto deve *diminuir* o saldo a receber.
+            const saldoPosAcertosA = (pagoPorA - devidoPorA) - acertosRecebidosA + acertosPagosA;
 
             const acertosRecebidosB = acertos.filter(ac => ac.para === b).reduce((s, ac) => s + (ac.valor || 0), 0);
             const acertosPagosB = acertos.filter(ac => ac.de === b).reduce((s, ac) => s + (ac.valor || 0), 0);
-            const saldoPosAcertosB = (pagoPorB - devidoPorB) + acertosRecebidosB - acertosPagosB;
+            // CORREÇÃO APLICADA AQUI: O valor pago em acerto deve *abater* a dívida.
+            const saldoPosAcertosB = (pagoPorB - devidoPorB) - acertosRecebidosB + acertosPagosB;
 
             let equalizacao = { valor: 0, texto: 'Saldos zerados' };
             if (saldoPosAcertosA > 0.01) {
@@ -256,6 +261,7 @@
             renderLancamentos();
             renderAcertos();
             renderResumoSocios();
+            renderHistoryModal();
             document.getElementById('kpi-total').textContent = fmt(cachedCalculations.totalGeral);
             document.getElementById('kpi-equalizacao').textContent = cachedCalculations.equalizacao.texto;
         }
@@ -324,6 +330,12 @@
             const tbody = document.getElementById('lancamentos-table-body');
             const filter = document.getElementById('filter-cc').value;
             const filtered = state.lancamentos.filter(l => filter === 'Todos' || l.cc === filter);
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-slate-500">Nenhum lançamento encontrado.</td></tr>`;
+                return;
+            }
+
             tbody.innerHTML = filtered.map(l => `
                 <tr class="border-b">
                     <td class="p-2">${l.dt}</td>
@@ -338,6 +350,10 @@
 
         function renderAcertos() {
             const list = document.getElementById('acertos-list');
+             if (state.acertos.length === 0) {
+                list.innerHTML = `<li class="text-center p-4 text-slate-500 text-sm">Nenhum acerto registrado.</li>`;
+                return;
+            }
             list.innerHTML = state.acertos.map(a => {
                 const date = a.dt?.toDate ? new Date(a.dt.toDate()).toLocaleDateString('pt-BR') : '...';
                 return `<li class="flex justify-between items-center p-2 bg-slate-100 rounded-md">
@@ -379,6 +395,7 @@
         }
         
         function addEventListeners() {
+            // Event delegation for dynamic buttons
             appWrapper.addEventListener('click', async e => {
                 if (e.target.id === 'logout-btn') signOut(auth);
                 if (e.target.matches('.delete-lancamento-btn')) {
@@ -419,6 +436,7 @@
                 if (e.target.id === 'history-close' || (e.target.id === 'history-modal' && !e.target.closest('.bg-white'))) document.getElementById('history-modal').classList.add('hidden');
             });
             
+            // Static elements
             document.getElementById('participant-a').addEventListener('change', async e => {
                 await setDoc(configDocRef, { a: e.target.value }, { merge: true });
                 await logEvent('Sócio A Alterado', { nome: e.target.value });
@@ -431,58 +449,142 @@
             document.getElementById('lancamento-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const form = e.target;
-                const lancamento = {
-                    dt: form.dt.value, desc: form.desc.value, cat: form.cat.value, cc: form.cc.value,
-                    valor: parseNum(form.valor.value), pagador: form.pagador.value,
-                    pA: parseFloat(form.pA.value), pB: parseFloat(form.pB.value), 
-                    anexo: form.anexo.value,
-                    createdBy: currentUser.displayName, createdAt: serverTimestamp()
-                };
-                if(!lancamento.dt) return alert('A data é obrigatória.');
-                if(lancamento.valor <= 0) return alert('O valor deve ser positivo.');
-                await addDoc(lancamentosCol, lancamento);
-                await logEvent('Lançamento Adicionado', { desc: lancamento.desc, valor: fmt(lancamento.valor) });
-                form.reset();
-                document.getElementById('dt').valueAsDate = new Date();
+                const button = form.querySelector('button[type="submit"]');
+                const originalButtonText = button.innerHTML;
+                button.disabled = true;
+                button.innerHTML = `<span class="btn-loader"></span> Salvando...`;
+
+                try {
+                    const lancamento = {
+                        dt: form.dt.value, desc: form.desc.value, cat: form.cat.value, cc: form.cc.value,
+                        valor: parseNum(form.valor.value), pagador: form.pagador.value,
+                        pA: parseFloat(form.pA.value), pB: parseFloat(form.pB.value), 
+                        anexo: form.anexo.value,
+                        createdBy: currentUser.displayName, createdAt: serverTimestamp()
+                    };
+                    if(!lancamento.dt) { alert('A data é obrigatória.'); return; }
+                    if(lancamento.valor <= 0) { alert('O valor deve ser positivo.'); return; }
+                    
+                    await addDoc(lancamentosCol, lancamento);
+                    await logEvent('Lançamento Adicionado', { desc: lancamento.desc, valor: fmt(lancamento.valor) });
+                    form.reset();
+                    document.getElementById('dt').valueAsDate = new Date();
+                } finally {
+                    button.disabled = false;
+                    button.innerHTML = originalButtonText;
+                }
             });
             
             document.getElementById('acerto-form').addEventListener('submit', async e => {
                 e.preventDefault();
                 const form = e.target;
-                const valor = parseNum(form['valor-acerto'].value);
-                if (form.de.value === form.para.value) return alert('Pagador e recebedor devem ser diferentes.');
-                if (valor <= 0) return alert('O valor do acerto deve ser positivo.');
-                const acerto = { 
-                    dt: serverTimestamp(), 
-                    de: form.de.value, 
-                    para: form.para.value, 
-                    valor, 
-                    anexo: form['anexo-acerto'].value 
-                };
-                await addDoc(acertosCol, acerto);
-                await logEvent('Acerto Registado', { de: acerto.de, para: acerto.para, valor: fmt(acerto.valor) });
-                form.reset();
+                const button = form.querySelector('button[type="submit"]');
+                const originalButtonText = button.innerHTML;
+                button.disabled = true;
+                button.innerHTML = `<span class="btn-loader"></span> Registrando...`;
+
+                try {
+                    const valor = parseNum(form['valor-acerto'].value);
+                    if (form.de.value === form.para.value) { alert('Pagador e recebedor devem ser diferentes.'); return; }
+                    if (valor <= 0) { alert('O valor do acerto deve ser positivo.'); return; }
+                    const acerto = { 
+                        dt: serverTimestamp(), 
+                        de: form.de.value, 
+                        para: form.para.value, 
+                        valor, 
+                        anexo: form['anexo-acerto'].value 
+                    };
+                    await addDoc(acertosCol, acerto);
+                    await logEvent('Acerto Registado', { de: acerto.de, para: acerto.para, valor: fmt(acerto.valor) });
+                    form.reset();
+                } finally {
+                    button.disabled = false;
+                    button.innerHTML = originalButtonText;
+                }
             });
             
             document.getElementById('quick-add-form').addEventListener('submit', async e => {
                 e.preventDefault();
                 const form = e.target;
-                const valor = parseNum(form['quick-valor'].value);
-                if (valor <= 0) return alert('O valor deve ser positivo.');
-                const lancamento = {
-                    dt: new Date().toISOString().split('T')[0], desc: form['quick-desc'].value, cat: 'Outros', cc: 'Outros',
-                    valor, pagador: form['quick-pagador'].value, pA: 0.5, pB: 0.5, anexo: "",
-                    createdBy: currentUser.displayName, createdAt: serverTimestamp()
-                };
-                await addDoc(lancamentosCol, lancamento);
-                await logEvent('Lanç. Rápido Adicionado', { desc: lancamento.desc, valor: fmt(lancamento.valor) });
-                form.reset();
-                document.getElementById('quick-add-modal').classList.add('hidden');
+                const button = form.querySelector('button[type="submit"]');
+                const originalButtonText = button.innerHTML;
+                button.disabled = true;
+                button.innerHTML = `<span class="btn-loader"></span> Adicionando...`;
+                
+                try {
+                    const valor = parseNum(form['quick-valor'].value);
+                    if (valor <= 0) { alert('O valor deve ser positivo.'); return; }
+                    const lancamento = {
+                        dt: new Date().toISOString().split('T')[0], desc: form['quick-desc'].value, cat: 'Outros', cc: 'Outros',
+                        valor, pagador: form['quick-pagador'].value, pA: 0.5, pB: 0.5, anexo: "",
+                        createdBy: currentUser.displayName, createdAt: serverTimestamp()
+                    };
+                    await addDoc(lancamentosCol, lancamento);
+                    await logEvent('Lanç. Rápido Adicionado', { desc: lancamento.desc, valor: fmt(lancamento.valor) });
+                    form.reset();
+                    document.getElementById('quick-add-modal').classList.add('hidden');
+                } finally {
+                    button.disabled = false;
+                    button.innerHTML = originalButtonText;
+                }
             });
 
-            document.getElementById('filter-cc').addEventListener('change', rerender);
+            document.getElementById('export-pdf-btn').addEventListener('click', () => {
+                const { totalGeral, pagoPorA, devidoPorA, saldoPosAcertosA, pagoPorB, devidoPorB, saldoPosAcertosB, realizadoPorCC, equalizacao } = cachedCalculations;
+                const { a, b } = state.config;
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                doc.setFontSize(18);
+                doc.text('Relatório de Custos da Obra', 14, 22);
+                doc.setFontSize(11);
+                doc.setTextColor(100);
+                doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 28);
+                
+                const resumoFinanceiro = [
+                    ['Custo Total da Obra', fmt(totalGeral)],
+                    ['Equalização Final', equalizacao.texto.replace(/<[^>]*>?/gm, '')],
+                ];
+                doc.autoTable({
+                    startY: 35,
+                    head: [['Resumo Geral', 'Valor']],
+                    body: resumoFinanceiro,
+                    theme: 'striped',
+                });
+
+                const resumoSocios = [
+                    [`Total Pago por ${a}`, fmt(pagoPorA)],
+                    [`Parte Devida por ${a}`, fmt(devidoPorA)],
+                    [`Saldo Final de ${a}`, fmt(saldoPosAcertosA)],
+                    [`Total Pago por ${b}`, fmt(pagoPorB)],
+                    [`Parte Devida por ${b}`, fmt(devidoPorB)],
+                    [`Saldo Final de ${b}`, fmt(saldoPosAcertosB)],
+                ];
+                doc.autoTable({
+                    startY: doc.lastAutoTable.finalY + 10,
+                    head: [[`Detalhes por Sócio`, 'Valor']],
+                    body: resumoSocios,
+                    theme: 'striped'
+                });
+
+                const custosPorCC = PREDEFINED_LISTS.centrosDeCusto
+                    .map(cc => [cc, fmt(realizadoPorCC[cc] || 0)])
+                    .filter(row => parseNum(row[1]) > 0);
+                doc.autoTable({
+                    startY: doc.lastAutoTable.finalY + 10,
+                    head: [['Centro de Custo', 'Valor Gasto']],
+                    body: custosPorCC,
+                    theme: 'grid'
+                });
+                
+                doc.save(`relatorio-obra-${new Date().toISOString().slice(0,10)}.pdf`);
+            });
+
+            document.getElementById('filter-cc').addEventListener('change', renderLancamentos);
+            
+            // MELHORIA: Definir data padrão no formulário principal
+            document.getElementById('dt').valueAsDate = new Date();
         }
     </script>
 </body>
 </html>
-
