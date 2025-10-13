@@ -223,12 +223,12 @@
             
             const acertosRecebidosA = acertos.filter(ac => ac.para === a).reduce((s, ac) => s + (ac.valor || 0), 0);
             const acertosPagosA = acertos.filter(ac => ac.de === a).reduce((s, ac) => s + (ac.valor || 0), 0);
-            // CORREÇÃO APLICADA AQUI: O valor recebido em acerto deve *diminuir* o saldo a receber.
+            // ✅ CORREÇÃO APLICADA AQUI: O valor recebido em acerto deve DIMINUIR o saldo a receber.
             const saldoPosAcertosA = (pagoPorA - devidoPorA) - acertosRecebidosA + acertosPagosA;
 
             const acertosRecebidosB = acertos.filter(ac => ac.para === b).reduce((s, ac) => s + (ac.valor || 0), 0);
             const acertosPagosB = acertos.filter(ac => ac.de === b).reduce((s, ac) => s + (ac.valor || 0), 0);
-            // CORREÇÃO APLICADA AQUI: O valor pago em acerto deve *abater* a dívida.
+            // ✅ CORREÇÃO APLICADA AQUI: O valor pago em acerto deve ABATER a dívida.
             const saldoPosAcertosB = (pagoPorB - devidoPorB) - acertosRecebidosB + acertosPagosB;
 
             let equalizacao = { valor: 0, texto: 'Saldos zerados' };
